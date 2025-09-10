@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Faculty Senate Vote Tracker</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+        }
+        .input-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+        input[type="text"], input[type="number"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 20px;
+            width: 100%;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .chart-container {
+            margin-top: 30px;
+            text-align: center;
+        }
+        .vote-title {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            color: #333;
+        }
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 20px;
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+        }
+        .stat {
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 20px;
+            font-weight: bold;
+            color: #007bff;
+        }
+        .stat-label {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+        .error {
+            color: #dc3545;
+            font-size: 14px;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Faculty Senate Vote Tracker</h1>
+        
+        <div class="input-group">
+            <label for="voteTitle">Vote Title:</label>
+            <input type="text" id="voteTitle" placeholder="Enter the name/description of the vote">
+        </div>
+        
+        <div class="input-group">
+            <label for="totalAttendance">Total Attendance (signed in):</label>
+            <input type="number" id="totalAttendance" min="1" placeholder="Number of people who signed in">
+        </div>
+        
+        <div class="input-group">
+            <label for="quorumRequired">Quorum Required:</label>
+            <input type="number" id="quorumRequired" min="1" placeholder="Number needed for quorum">
+        </div>
+        
+        <div class="input-group">
+            <label for="votesReceived">Votes Received:</label>
+            <input type="number" id="votesReceived" min="0" placeholder="Number of people who voted">
+        </div>
+        
+        <button onclick="updateChart()">Generate Vote Tracker</button>
+        
+        <div id="errorMessage" class="error"></div>
+        
+        <div class="chart-container" id="chartContainer" style="display: none;">
+            <div class="vote-title" id="displayTitle"></div>
+            <div class="stats">
+                <div class="stat">
+                    <div class="stat-value" id="attendanceCount">0</div>
+                    <div class="stat-label">Total Attendance</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="quorumCount">0</div>
+                    <div class="stat-label">Quorum Required</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="votesCount">0</div>
+                    <div class="stat-label">Votes Received</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="participationRate">0%</div>
+                    <div class="stat-label">Participation Rate</div>
+                </div>
+            </div>
+            <canvas id="voteChart" width="400" height="300"></canvas>
+        </div>
+    </div>
+
+    <script>
+        let chart = null;
+
+        function updateChart() {
+            const voteTitle = document.getElementById('voteTitle').value.trim();
+            const totalAttendance = parseInt(document.getElementById('totalAttendance').value);
+            const quorumRequired = parseInt(document.getElementById('quorumRequired').value);
+            const votesReceived = parseInt(document.getElementById('votesReceived').value);
+            const errorDiv = document.getElementById('errorMessage');
+            
+            // Clear previous errors
+            errorDiv.textContent = '';
+            
+            // Validation
+            if (!voteTitle) {
+                errorDiv.textContent = 'Please enter a vote title.';
+                return;
+            }
+            
+            if (isNaN(totalAttendance) || totalAttendance <= 0) {
+                errorDiv.textContent = 'Please enter a valid total attendance number.';
+                return;
+            }
+            
+            if (isNaN(quorumRequired) || quorumRequired <= 0) {
+                errorDiv.textContent = 'Please enter a valid quorum number.';
+                return;
+            }
+            
+            if (isNaN(votesReceived) || votesReceived < 0) {
+                errorDiv.textContent = 'Please enter a valid number of votes received.';
+                return;
+            }
+            
+            if (votesReceived > totalAttendance) {
+                errorDiv.textContent = 'Votes received cannot exceed total attendance.';
+                return;
+            }
+            
+            if (quorumRequired > totalAttendance) {
+                errorDiv.textContent = 'Quorum cannot exceed total attendance.';
+                return;
+            }
+            
+            // Calculate percentages
+            const participationRate = (votesReceived / totalAttendance * 100).toFixed(1);
+            const quorumPercentage = (quorumRequired / totalAttendance * 100);
+            const votesPercentage = (votesReceived / totalAttendance * 100);
+            
+            // Update display
+            document.getElementById('displayTitle').textContent = voteTitle;
+            document.getElementById('attendanceCount').textContent = totalAttendance;
+            document.getElementById('quorumCount').textContent = quorumRequired;
+            document.getElementById('votesCount').textContent = votesReceived;
+            document.getElementById('participationRate').textContent = participationRate + '%';
+            
+            // Show chart container
+            document.getElementById('chartContainer').style.display = 'block';
+            
+            // Create thermometer chart
+            const ctx = document.getElementById('voteChart').getContext('2d');
+            
+            // Destroy existing chart if it exists
+            if (chart) {
+                chart.destroy();
+            }
+            
+            chart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Vote Participation'],
+                    datasets: [{
+                        label: 'Votes Received',
+                        data: [votesPercentage],
+                        backgroundColor: votesPercentage >= quorumPercentage ? '#28a745' : '#dc3545',
+                        borderColor: votesPercentage >= quorumPercentage ? '#1e7e34' : '#c82333',
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `${votesReceived} of ${totalAttendance} members voted (${participationRate}%)`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            max: 100,
+                            ticks: {
+                                callback: function(value) {
+                                    return value + '%';
+                                }
+                            },
+                            title: {
+                                display: true,
+                                text: 'Participation Percentage'
+                            }
+                        },
+                        y: {
+                            display: false
+                        }
+                    },
+                    animation: {
+                        duration: 1000
+                    }
+                },
+                plugins: [{
+                    afterDraw: function(chart) {
+                        const ctx = chart.ctx;
+                        const chartArea = chart.chartArea;
+                        
+                        // Draw quorum line
+                        const quorumX = chartArea.left + (quorumPercentage / 100) * (chartArea.right - chartArea.left);
+                        
+                        ctx.save();
+                        ctx.strokeStyle = '#ffc107';
+                        ctx.lineWidth = 3;
+                        ctx.setLineDash([5, 5]);
+                        ctx.beginPath();
+                        ctx.moveTo(quorumX, chartArea.top);
+                        ctx.lineTo(quorumX, chartArea.bottom);
+                        ctx.stroke();
+                        
+                        // Add quorum label
+                        ctx.fillStyle = '#ffc107';
+                        ctx.font = 'bold 12px Arial';
+                        ctx.textAlign = 'center';
+                        ctx.fillText('Quorum', quorumX, chartArea.top - 10);
+                        
+                        ctx.restore();
+                    }
+                }]
+            });
+        }
+    </script>
+</body>
+</html>
