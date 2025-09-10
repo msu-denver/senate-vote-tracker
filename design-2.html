@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Faculty Senate Vote Tracker - Design 2 Prototypes</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+        }
+        .design-selector {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 30px;
+        }
+        .design-btn {
+            padding: 10px 20px;
+            border: 2px solid #007bff;
+            background: white;
+            color: #007bff;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 14px;
+        }
+        .design-btn.active {
+            background: #007bff;
+            color: white;
+        }
+        .design-btn:hover {
+            background: #0056b3;
+            color: white;
+        }
+        .input-section {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .input-group {
+            display: flex;
+            flex-direction: column;
+        }
+        label {
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+        input[type="text"], input[type="number"] {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        button {
+            background-color: #28a745;
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+        button:hover {
+            background-color: #218838;
+        }
+        .visualization-area {
+            margin-top: 30px;
+            text-align: center;
+        }
+        .vote-title {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            color: #333;
+        }
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 20px;
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+        }
+        .stat {
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 20px;
+            font-weight: bold;
+            color: #007bff;
+        }
+        .stat-label {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+        .error {
+            color: #dc3545;
+            font-size: 14px;
+            margin-top: 5px;
+        }
+        
+        /* Design-specific styles */
+        .design-container {
+            display: none;
+            min-height: 400px;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+        }
+        .design-container.active {
+            display: flex;
+        }
+        
+        /* Vertical Bar Chart */
+        .vertical-chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+        }
+        
+        /* Parliament Hemicycle */
+        .parliament-container {
+            width: 500px;
+            height: 300px;
+            position: relative;
+            margin: 0 auto;
+        }
+        .parliament-seat {
+            fill: #dee2e6;
+            stroke: #fff;
+            stroke-width: 1;
+            transition: fill 0.5s ease;
+        }
+        .parliament-seat.voted {
+            fill: #28a745;
+        }
+        .parliament-seat.quorum {
+            stroke: #ffc107;
+            stroke-width: 2;
+        }
+        
+        /* Modern Thermometer */
+        .modern-thermometer {
+            width: 80px;
+            height: 350px;
+            position: relative;
+            margin: 0 auto;
+            background: linear-gradient(180deg, #e9ecef 0%, #dee2e6 100%);
+            border-radius: 40px;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        .thermometer-mercury {
+            width: 60px;
+            height: 60px;
+            background: #dc3545;
+            border-radius: 50%;
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            box-shadow: 0 0 20px rgba(220, 53, 69, 0.5);
+        }
+        .thermometer-column {
+            width: 20px;
+            height: 280px;
+            position: absolute;
+            bottom: 40px;
+            left: 30px;
+            overflow: hidden;
+            border-radius: 10px;
+        }
+        .thermometer-fill {
+            width: 100%;
+            background: linear-gradient(0deg, #dc3545 0%, #fd7e14 25%, #ffc107 50%, #28a745 75%, #20c997 100%);
+            position: absolute;
+            bottom: 0;
+            transition: height 1.5s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 0 15px rgba(40, 167, 69, 0.3);
+        }
+        .thermometer-scale {
+            position: absolute;
+            right: -40px;
+            height: 100%;
+            display: flex;
+            flex-direction: column-reverse;
+            justify-content: space-between;
+            font-size: 12px;
+            color: #666;
+            top: 10px;
+        }
+        .thermometer-quorum {
+            position: absolute;
+            right: -80px;
+            background: #ffc107;
+            color: #000;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: bold;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        /* Dashboard Style */
+        .dashboard-container {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 30px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .dashboard-metrics {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .metric-card {
+            background: linear-gradient(135deg, #007bff, #0056b3);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .metric-card.success {
+            background: linear-gradient(135deg, #28a745, #1e7e34);
+        }
+        .metric-card.warning {
+            background: linear-gradient(135deg, #ffc107, #e0a800);
+            color: #000;
+        }
+        .metric-card.danger {
+            background: linear-gradient(135deg, #dc3545, #c82333);
+        }
+        .metric-number {
+            font-size: 32px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .metric-label {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        .progress-bar-container {
+            background: #e9ecef;
+            border-radius: 10px;
+            height: 20px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #28a745, #20c997);
+            transition: width 1s ease;
+            border-radius: 10px;
+            position: relative;
+        }
+        .progress-bar.low {
+            background: linear-gradient(90deg, #dc3545, #fd7e14);
+        }
+        .quorum-marker {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background: #ffc107;
+            box-shadow: 0 0 10px rgba(255, 193, 7, 0.8);
+        }
+        
+        /* Gauge Chart */
+        .gauge-container {
+            position: relative;
+            width: 300px;
+            height: 200px;
+            margin: 0 auto;
+        }
+        .gauge-svg {
+            transform: rotate(-90deg);
+        }
+        .gauge-bg {
+            fill: none;
+            stroke: #e9ecef;
+            stroke-width: 20;
+        }
+        .gauge-fill {
+            fill: none;
+            stroke-width: 20;
+            stroke-linecap: round;
+            transition: stroke-dasharray 1s ease;
+        }
+        .gauge-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+        }
+        .gauge-percentage {
+            font-size: 36px;
+            font-weight: bold;
+            color: #333;
+        }
+        .gauge-label {
+            font-size: 14px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Faculty Senate Vote Tracker - Enhanced Designs</h1>
+        
+        <div class="design-selector">
+            <button class="design-btn active" onclick="selectDesign('vertical')">Vertical Bar Chart</button>
+            <button class="design-btn" onclick="selectDesign('parliament')">Parliament Hemicycle</button>
+            <button class="design-btn" onclick="selectDesign('thermometer')">Modern Thermometer</button>
+            <button class="design-btn" onclick="selectDesign('dashboard')">Dashboard Style</button>
+            <button class="design-btn" onclick="selectDesign('gauge')">Gauge Chart</button>
+        </div>
+        
+        <div class="input-section">
+            <div class="input-group">
+                <label for="voteTitle">Vote Title:</label>
+                <input type="text" id="voteTitle" placeholder="Enter vote name" value="Budget Approval Motion">
+            </div>
+            
+            <div class="input-group">
+                <label for="totalAttendance">Total Attendance:</label>
+                <input type="number" id="totalAttendance" min="1" placeholder="Signed in" value="50">
+            </div>
+            
+            <div class="input-group">
+                <label for="quorumRequired">Quorum Required:</label>
+                <input type="number" id="quorumRequired" min="1" placeholder="For voting" value="26">
+            </div>
+            
+            <div class="input-group">
+                <label for="votesReceived">Votes Received:</label>
+                <input type="number" id="votesReceived" min="0" placeholder="Who voted" value="35">
+            </div>
+        </div>
+        
+        <button onclick="updateVisualization()">Update Visualization</button>
+        
+        <div id="errorMessage" class="error"></div>
+        
+        <div class="visualization-area" id="vizArea" style="display: none;">
+            <div class="vote-title" id="displayTitle"></div>
+            <div class="stats">
+                <div class="stat">
+                    <div class="stat-value" id="attendanceCount">0</div>
+                    <div class="stat-label">Total Attendance</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="quorumCount">0</div>
+                    <div class="stat-label">Quorum Required</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="votesCount">0</div>
+                    <div class="stat-label">Votes Received</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="participationRate">0%</div>
+                    <div class="stat-label">Participation Rate</div>
+                </div>
+            </div>
+            
+            <!-- Vertical Bar Chart -->
+            <div class="design-container active" id="vertical-design">
+                <div class="vertical-chart-container">
+                    <canvas id="verticalChart" width="600" height="400"></canvas>
+                </div>
+            </div>
+            
+            <!-- Parliament Hemicycle -->
+            <div class="design-container" id="parliament-design">
+                <div class="parliament-container">
+                    <svg id="parliamentSvg" width="500" height="300"></svg>
+                </div>
+            </div>
+            
+            <!-- Modern Thermometer -->
+            <div class="design-container" id="thermometer-design">
+                <div class="modern-thermometer">
+                    <div class="thermometer-mercury"></div>
+                    <div class="thermometer-column">
+                        <div class="thermometer-fill" id="modernThermometerFill"></div>
+                    </div>
+                    <div class="thermometer-scale">
+                        <span>100%</span>
+                        <span>75%</span>
+                        <span>50%</span>
+                        <span>25%</span>
+                        <span>0%</span>
+                    </div>
+                    <div class="thermometer-quorum" id="modernThermometerQuorum" style="display: none;">Quorum</div>
+                </div>
+            </div>
+            
+            <!-- Dashboard Style -->
+            <div class="design-container" id="dashboard-design">
+                <div class="dashboard-container">
+                    <div class="dashboard-metrics">
+                        <div class="metric-card" id="attendanceCard">
+                            <div class="metric-number" id="dashboardAttendance">0</div>
+                            <div class="metric-label">Present</div>
+                        </div>
+                        <div class="metric-card" id="quorumCard">
+                            <div class="metric-number" id="dashboardQuorum">0</div>
+                            <div class="metric-label">Quorum</div>
+                        </div>
+                        <div class="metric-card" id="votesCard">
+                            <div class="metric-number" id="dashboardVotes">0</div>
+                            <div class="metric-label">Voted</div>
+                        </div>
+                    </div>
+                    <div class="dashboard-chart">
+                        <h3>Voting Progress</h3>
+                        <div class="progress-bar-container">
+                            <div class="progress-bar" id="dashboardProgress">
+                                <div class="quorum-marker" id="dashboardQuorumMarker"></div>
+                            </div>
+                        </div>
+                        <canvas id="dashboardChart" width="400" height="200"></canvas>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Gauge Chart -->
+            <div class="design-container" id="gauge-design">
+                <div class="gauge-container">
+                    <svg class="gauge-svg" width="300" height="200">
+                        <circle class="gauge-bg" cx="150" cy="150" r="100"></circle>
+                        <circle class="gauge-fill" id="gaugeFill" cx="150" cy="150" r="100"></circle>
+                    </svg>
+                    <div class="gauge-text">
+                        <div class="gauge-percentage" id="gaugePercentage">0%</div>
+                        <div class="gauge-label">Participation</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentDesign = 'vertical';
+        let verticalChart = null;
+        let dashboardChart = null;
+
+        function selectDesign(design) {
+            document.querySelectorAll('.design-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            document.querySelectorAll('.design-container').forEach(container => {
+                container.classList.remove('active');
+            });
+            
+            document.getElementById(design + '-design').classList.add('active');
+            currentDesign = design;
+            
+            if (document.getElementById('vizArea').style.display !== 'none') {
+                updateVisualization();
+            }
+        }
+
+        function updateVisualization() {
+            const voteTitle = document.getElementById('voteTitle').value.trim();
+            const totalAttendance = parseInt(document.getElementById('totalAttendance').value);
+            const quorumRequired = parseInt(document.getElementById('quorumRequired').value);
+            const votesReceived = parseInt(document.getElementById('votesReceived').value);
+            const errorDiv = document.getElementById('errorMessage');
+            
+            errorDiv.textContent = '';
+            
+            if (!voteTitle) {
+                errorDiv.textContent = 'Please enter a vote title.';
+                return;
+            }
+            
+            if (isNaN(totalAttendance) || totalAttendance <= 0) {
+                errorDiv.textContent = 'Please enter a valid total attendance number.';
+                return;
+            }
+            
+            if (isNaN(quorumRequired) || quorumRequired <= 0) {
+                errorDiv.textContent = 'Please enter a valid quorum number.';
+                return;
+            }
+            
+            if (isNaN(votesReceived) || votesReceived < 0) {
+                errorDiv.textContent = 'Please enter a valid number of votes received.';
+                return;
+            }
+            
+            if (votesReceived > totalAttendance) {
+                errorDiv.textContent = 'Votes received cannot exceed total attendance.';
+                return;
+            }
+            
+            if (quorumRequired > totalAttendance) {
+                errorDiv.textContent = 'Quorum cannot exceed total attendance.';
+                return;
+            }
+            
+            const participationRate = (votesReceived / totalAttendance * 100).toFixed(1);
+            const quorumPercentage = (quorumRequired / totalAttendance * 100);
+            const votesPercentage = (votesReceived / totalAttendance * 100);
+            
+            document.getElementById('displayTitle').textContent = voteTitle;
+            document.getElementById('attendanceCount').textContent = totalAttendance;
+            document.getElementById('quorumCount').textContent = quorumRequired;
+            document.getElementById('votesCount').textContent = votesReceived;
+            document.getElementById('participationRate').textContent = participationRate + '%';
+            
+            document.getElementById('vizArea').style.display = 'block';
+            
+            switch(currentDesign) {
+                case 'vertical':
+                    updateVerticalChart(votesPercentage, quorumPercentage, votesReceived, totalAttendance, participationRate);
+                    break;
+                case 'parliament':
+                    updateParliamentChart(votesReceived, totalAttendance, quorumRequired);
+                    break;
+                case 'thermometer':
+                    updateModernThermometer(votesPercentage, quorumPercentage);
+                    break;
+                case 'dashboard':
+                    updateDashboard(votesReceived, totalAttendance, quorumRequired, votesPercentage, quorumPercentage);
+                    break;
+                case 'gauge':
+                    updateGaugeChart(votesPercentage, quorumPercentage);
+                    break;
+            }
+        }
+
+        function updateVerticalChart(votesPercentage, quorumPercentage, votesReceived, totalAttendance, participationRate) {
+            const ctx = document.getElementById('verticalChart').getContext('2d');
+            
+            if (verticalChart) {
+                verticalChart.destroy();
+            }
+            
+            verticalChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Vote Participation'],
+                    datasets: [{
+                        label: 'Votes Received',
+                        data: [votesPercentage],
+                        backgroundColor: votesPercentage >= quorumPercentage ? '#28a745' : '#dc3545',
+                        borderColor: votesPercentage >= quorumPercentage ? '#1e7e34' : '#c82333',
+                        borderWidth: 2,
+                        borderRadius: 8,
+                        borderSkipped: false,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `${votesReceived} of ${totalAttendance} members voted (${participationRate}%)`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            ticks: { callback: function(value) { return value + '%'; } },
+                            title: { display: true, text: 'Participation Percentage' }
+                        },
+                        x: { display: false }
+                    },
+                    animation: { duration: 1200, easing: 'easeOutBounce' }
+                },
+                plugins: [{
+                    afterDraw: function(chart) {
+                        const ctx = chart.ctx;
+                        const chartArea = chart.chartArea;
+                        const quorumY = chartArea.bottom - (quorumPercentage / 100) * (chartArea.bottom - chartArea.top);
+                        
+                        ctx.save();
+                        ctx.strokeStyle = '#ffc107';
+                        ctx.lineWidth = 4;
+                        ctx.setLineDash([8, 4]);
+                        ctx.beginPath();
+                        ctx.moveTo(chartArea.left, quorumY);
+                        ctx.lineTo(chartArea.right, quorumY);
+                        ctx.stroke();
+                        
+                        ctx.fillStyle = '#ffc107';
+                        ctx.font = 'bold 14px Arial';
+                        ctx.textAlign = 'right';
+                        ctx.fillText('Quorum', chartArea.right - 10, quorumY - 10);
+                        ctx.restore();
+                    }
+                }]
+            });
+        }
+
+        function updateParliamentChart(votesReceived, totalAttendance, quorumRequired) {
+            const svg = d3.select('#parliamentSvg');
+            svg.selectAll('*').remove();
+            
+            const width = 500;
+            const height = 300;
+            const centerX = width / 2;
+            const centerY = height - 20;
+            const radius = 120;
+            
+            const angleSpan = Math.PI;
+            const rows = 5;
+            const seatsPerRow = Math.ceil(totalAttendance / rows);
+            
+            let seatData = [];
+            let seatIndex = 0;
+            
+            for (let row = 0; row < rows; row++) {
+                const rowRadius = radius - (row * 25);
+                const seatsInThisRow = Math.min(seatsPerRow, totalAttendance - seatIndex);
+                const angleStep = angleSpan / (seatsInThisRow - 1);
+                
+                for (let seat = 0; seat < seatsInThisRow; seat++) {
+                    const angle = angleStep * seat;
+                    const x = centerX + rowRadius * Math.cos(angle);
+                    const y = centerY - rowRadius * Math.sin(angle);
+                    
+                    seatData.push({
+                        x: x,
+                        y: y,
+                        voted: seatIndex < votesReceived,
+                        quorum: seatIndex < quorumRequired,
+                        index: seatIndex
+                    });
+                    seatIndex++;
+                }
+            }
+            
+            svg.selectAll('.parliament-seat')
+                .data(seatData)
+                .enter()
+                .append('circle')
+                .attr('class', d => `parliament-seat ${d.voted ? 'voted' : ''} ${d.quorum ? 'quorum' : ''}`)
+                .attr('cx', d => d.x)
+                .attr('cy', d => d.y)
+                .attr('r', 6)
+                .style('opacity', 0)
+                .transition()
+                .duration(500)
+                .delay((d, i) => i * 50)
+                .style('opacity', 1);
+        }
+
+        function updateModernThermometer(votesPercentage, quorumPercentage) {
+            const fill = document.getElementById('modernThermometerFill');
+            const quorumIndicator = document.getElementById('modernThermometerQuorum');
+            
+            fill.style.height = votesPercentage + '%';
+            
+            const quorumPosition = 280 - (quorumPercentage / 100 * 280);
+            quorumIndicator.style.top = (quorumPosition + 40) + 'px';
+            quorumIndicator.style.display = 'block';
+        }
+
+        function updateDashboard(votesReceived, totalAttendance, quorumRequired, votesPercentage, quorumPercentage) {
+            document.getElementById('dashboardAttendance').textContent = totalAttendance;
+            document.getElementById('dashboardQuorum').textContent = quorumRequired;
+            document.getElementById('dashboardVotes').textContent = votesReceived;
+            
+            const attendanceCard = document.getElementById('attendanceCard');
+            const quorumCard = document.getElementById('quorumCard');
+            const votesCard = document.getElementById('votesCard');
+            
+            attendanceCard.className = 'metric-card';
+            quorumCard.className = votesReceived >= quorumRequired ? 'metric-card success' : 'metric-card warning';
+            votesCard.className = votesReceived >= quorumRequired ? 'metric-card success' : 'metric-card danger';
+            
+            const progressBar = document.getElementById('dashboardProgress');
+            const quorumMarker = document.getElementById('dashboardQuorumMarker');
+            
+            progressBar.style.width = votesPercentage + '%';
+            progressBar.className = votesPercentage >= quorumPercentage ? 'progress-bar' : 'progress-bar low';
+            quorumMarker.style.left = quorumPercentage + '%';
+            
+            const ctx = document.getElementById('dashboardChart').getContext('2d');
+            
+            if (dashboardChart) {
+                dashboardChart.destroy();
+            }
+            
+            dashboardChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Voted', 'Not Voted'],
+                    datasets: [{
+                        data: [votesReceived, totalAttendance - votesReceived],
+                        backgroundColor: ['#28a745', '#e9ecef'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { position: 'bottom' }
+                    },
+                    animation: { duration: 1000 }
+                }
+            });
+        }
+
+        function updateGaugeChart(votesPercentage, quorumPercentage) {
+            const gaugeFill = document.getElementById('gaugeFill');
+            const gaugePercentage = document.getElementById('gaugePercentage');
+            
+            const circumference = 2 * Math.PI * 100;
+            const fillPercentage = votesPercentage / 100;
+            const strokeDasharray = `${circumference * fillPercentage} ${circumference}`;
+            
+            const color = votesPercentage >= quorumPercentage ? '#28a745' : '#dc3545';
+            
+            gaugeFill.style.stroke = color;
+            gaugeFill.style.strokeDasharray = strokeDasharray;
+            gaugePercentage.textContent = votesPercentage.toFixed(1) + '%';
+            gaugePercentage.style.color = color;
+        }
+
+        window.onload = function() {
+            updateVisualization();
+        };
+    </script>
+</body>
+</html>
