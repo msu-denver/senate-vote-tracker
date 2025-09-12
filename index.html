@@ -161,6 +161,193 @@
             background: #ffc107;
             box-shadow: 0 0 10px rgba(255, 193, 7, 0.8);
         }
+        
+        /* Mobile-first responsive design */
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+            
+            .container {
+                padding: 20px;
+            }
+            
+            h1 {
+                font-size: 24px;
+                margin-bottom: 20px;
+            }
+            
+            /* Stack input fields vertically on mobile */
+            .input-section {
+                grid-template-columns: 1fr;
+                gap: 12px;
+                margin-bottom: 15px;
+            }
+            
+            input[type="text"], input[type="number"] {
+                padding: 12px;
+                font-size: 16px; /* Prevents zoom on iOS */
+            }
+            
+            button {
+                padding: 14px 20px;
+                font-size: 16px;
+                margin-top: 15px;
+            }
+            
+            /* Stack dashboard layout vertically on mobile */
+            .dashboard-container {
+                grid-template-columns: 1fr;
+                gap: 20px;
+                max-width: 100%;
+            }
+            
+            /* Stack metrics vertically on mobile */
+            .dashboard-metrics {
+                flex-direction: column;
+                gap: 10px;
+                padding: 0 10px;
+            }
+            
+            .metric-card {
+                width: calc(100% - 20px);
+                max-width: 200px;
+                margin: 0 auto;
+                padding: 12px;
+                box-sizing: border-box;
+            }
+            
+            .metric-number {
+                font-size: 24px;
+            }
+            
+            .metric-label {
+                font-size: 12px;
+            }
+            
+            /* Mobile stats layout */
+            .stats {
+                flex-direction: column;
+                gap: 10px;
+                padding: 12px;
+            }
+            
+            .stat {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 8px;
+                background: white;
+                border-radius: 5px;
+            }
+            
+            .stat-value {
+                font-size: 18px;
+            }
+            
+            .stat-label {
+                font-size: 14px;
+                margin-top: 0;
+            }
+            
+            /* Export buttons */
+            #exportSection {
+                margin-top: 15px;
+            }
+            
+            #exportSection button {
+                display: block;
+                width: 100%;
+                margin: 5px 0;
+                padding: 12px;
+            }
+            
+            .vote-title {
+                font-size: 20px;
+                margin-bottom: 15px;
+            }
+            
+            /* Mobile chart adjustments */
+            .dashboard-chart {
+                padding: 0 10px;
+                overflow: hidden;
+            }
+            
+            .dashboard-chart h3 {
+                font-size: 18px;
+                margin-bottom: 10px;
+            }
+            
+            .progress-bar-container {
+                margin: 10px 0;
+                max-width: 100%;
+                overflow: hidden;
+            }
+            
+            #dashboardChart {
+                max-width: 100% !important;
+                max-height: 200px !important;
+                width: 100% !important;
+                height: auto !important;
+            }
+        }
+        
+        /* Tablet adjustments */
+        @media (min-width: 769px) and (max-width: 1024px) {
+            .container {
+                padding: 25px;
+            }
+            
+            .dashboard-container {
+                max-width: 90%;
+            }
+            
+            .input-section {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        
+        /* Small mobile phones */
+        @media (max-width: 480px) {
+            body {
+                padding: 5px;
+            }
+            
+            .container {
+                padding: 15px;
+            }
+            
+            h1 {
+                font-size: 20px;
+            }
+            
+            .dashboard-metrics {
+                flex-direction: column;
+                gap: 8px;
+            }
+            
+            .metric-card {
+                min-width: auto;
+                padding: 12px;
+            }
+            
+            .metric-number {
+                font-size: 20px;
+            }
+            
+            .vote-title {
+                font-size: 18px;
+            }
+            
+            /* Progress bar adjustments for small screens */
+            .progress-bar-container {
+                height: 16px;
+            }
+            
+            .quorum-marker {
+                width: 2px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -344,8 +531,15 @@
                 },
                 options: {
                     responsive: true,
+                    maintainAspectRatio: true,
                     plugins: {
-                        legend: { position: 'bottom' }
+                        legend: { 
+                            position: 'bottom',
+                            labels: {
+                                boxWidth: 12,
+                                padding: 8
+                            }
+                        }
                     },
                     animation: { duration: 1000 }
                 }
