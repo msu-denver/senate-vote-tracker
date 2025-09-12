@@ -380,7 +380,7 @@
         
         <div id="exportSection" style="display: none; margin-top: 20px; text-align: center;">
             <button onclick="exportAsImage()" style="background-color: #6c757d; margin-right: 10px;">Export as Image</button>
-            <button onclick="generateShareLink()" style="background-color: #17a2b8;">Copy Link to Results</button>
+            <button onclick="generateShareLink(event)" style="background-color: #17a2b8;">Copy Link to Results</button>
         </div>
         
         <div id="errorMessage" class="error"></div>
@@ -598,7 +598,7 @@
             });
         }
 
-        function generateShareLink() {
+        function generateShareLink(event) {
             const voteTitle = document.getElementById('voteTitle').value.trim();
             const totalAttendance = document.getElementById('totalAttendance').value;
             const quorumRequired = document.getElementById('quorumRequired').value;
@@ -612,10 +612,12 @@
             
             const shareUrl = window.location.origin + window.location.pathname + '?' + params.toString();
             
+            // Get the button element
+            const button = event ? event.target : document.querySelector('button[onclick*="generateShareLink"]');
+            
             // Copy directly to clipboard
             navigator.clipboard.writeText(shareUrl).then(function() {
                 // Show temporary success message
-                const button = event.target;
                 const originalText = button.textContent;
                 button.textContent = 'Copied!';
                 button.style.backgroundColor = '#28a745';
