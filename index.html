@@ -192,7 +192,8 @@
         <button onclick="updateVisualization()">Update Vote Tracker</button>
         
         <div id="exportSection" style="display: none; margin-top: 20px; text-align: center;">
-            <button onclick="exportAsImage()" style="background-color: #6c757d;">Export as Image</button>
+            <button onclick="exportAsImage()" style="background-color: #6c757d; margin-right: 10px;">Export as Image</button>
+            <button onclick="generateShareLink()" style="background-color: #17a2b8;">Copy Link to Results</button>
         </div>
         
         <div id="errorMessage" class="error"></div>
@@ -372,6 +373,71 @@
                 alert('Error generating image. Please try again.');
             });
         }
+
+        function generateShareLink() {
+            const voteTitle = document.getElementById('voteTitle').value.trim();
+            const totalAttendance = document.getElementById('totalAttendance').value;
+            const quorumRequired = document.getElementById('quorumRequired').value;
+            const votesReceived = document.getElementById('votesReceived').value;
+            
+            const params = new URLSearchParams();
+            if (voteTitle) params.set('title', encodeURIComponent(voteTitle));
+            if (totalAttendance) params.set('attendance', totalAttendance);
+            if (quorumRequired) params.set('quorum', quorumRequired);
+            if (votesReceived) params.set('votes', votesReceived);
+            
+            const shareUrl = window.location.origin + window.location.pathname + '?' + params.toString();
+            
+            // Copy directly to clipboard
+            navigator.clipboard.writeText(shareUrl).then(function() {
+                // Show temporary success message
+                const button = event.target;
+                const originalText = button.textContent;
+                button.textContent = 'Copied!';
+                button.style.backgroundColor = '#28a745';
+                
+                setTimeout(function() {
+                    button.textContent = originalText;
+                    button.style.backgroundColor = '#17a2b8';
+                }, 1500);
+            }).catch(function(error) {
+                // Fallback: show the URL in a prompt for manual copying
+                console.error('Clipboard copy failed:', error);
+                prompt('Copy this link to share your results:', shareUrl);
+            });
+        }
+
+        function loadFromUrlParams() {
+            const urlParams = new URLSearchParams(window.location.search);
+            
+            const title = urlParams.get('title');
+            const attendance = urlParams.get('attendance');
+            const quorum = urlParams.get('quorum');
+            const votes = urlParams.get('votes');
+            
+            if (title) {
+                document.getElementById('voteTitle').value = decodeURIComponent(title);
+            }
+            if (attendance) {
+                document.getElementById('totalAttendance').value = attendance;
+            }
+            if (quorum) {
+                document.getElementById('quorumRequired').value = quorum;
+            }
+            if (votes) {
+                document.getElementById('votesReceived').value = votes;
+            }
+            
+            // If we have any URL parameters, automatically update the visualization
+            if (title || attendance || quorum || votes) {
+                updateVisualization();
+            }
+        }
+
+        // Load URL parameters on page load
+        window.onload = function() {
+            loadFromUrlParams();
+        };
     </script>
 </body>
 </html>
