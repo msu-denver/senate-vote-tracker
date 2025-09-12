@@ -503,7 +503,7 @@
             const votesCard = document.getElementById('votesCard');
             
             attendanceCard.className = 'metric-card';
-            quorumCard.className = votesReceived >= quorumRequired ? 'metric-card success' : 'metric-card warning';
+            quorumCard.className = 'metric-card warning'; // Always yellow to match quorum indicators
             votesCard.className = votesReceived >= quorumRequired ? 'metric-card success' : 'metric-card danger';
             
             const progressBar = document.getElementById('dashboardProgress');
@@ -519,15 +519,35 @@
                 dashboardChart.destroy();
             }
             
+            // Create datasets with quorum visualization
+            const datasets = [];
+            
+            // Main voting data
+            datasets.push({
+                data: [votesReceived, totalAttendance - votesReceived],
+                backgroundColor: [
+                    votesReceived >= quorumRequired ? '#28a745' : '#dc3545',
+                    '#e9ecef'
+                ],
+                borderWidth: 0,
+                weight: 2
+            });
+            
+            // Quorum indicator ring
+            const quorumData = [quorumRequired, totalAttendance - quorumRequired];
+            datasets.push({
+                data: quorumData,
+                backgroundColor: ['#ffc107', 'transparent'],
+                borderWidth: 0,
+                weight: 0.5,
+                borderRadius: 0
+            });
+            
             dashboardChart = new Chart(ctx, {
                 type: 'doughnut',
                 data: {
                     labels: ['Voted', 'Not Voted'],
-                    datasets: [{
-                        data: [votesReceived, totalAttendance - votesReceived],
-                        backgroundColor: ['#28a745', '#e9ecef'],
-                        borderWidth: 0
-                    }]
+                    datasets: datasets
                 },
                 options: {
                     responsive: true,
@@ -537,7 +557,17 @@
                             position: 'bottom',
                             labels: {
                                 boxWidth: 12,
-                                padding: 8
+                                padding: 8,
+                                filter: function(legendItem, chartData) {
+                                    // Only show legend for the main dataset
+                                    return legendItem.datasetIndex === 0;
+                                }
+                            }
+                        },
+                        tooltip: {
+                            filter: function(tooltipItem) {
+                                // Only show tooltips for the main dataset
+                                return tooltipItem.datasetIndex === 0;
                             }
                         }
                     },
