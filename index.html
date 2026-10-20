@@ -162,6 +162,191 @@
             box-shadow: 0 0 10px rgba(255, 193, 7, 0.8);
         }
 
+        /* Modes */
+        [hidden] { display: none !important; }
+        .mode-switch {
+            border: none;
+            padding: 0;
+            margin: 0 0 25px 0;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+        }
+        .mode-switch legend {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            overflow: hidden;
+            clip: rect(0 0 0 0);
+        }
+        .mode-switch input {
+            position: absolute;
+            opacity: 0;
+            width: 1px;
+            height: 1px;
+        }
+        .mode-switch label {
+            margin: 0;
+            padding: 10px 16px;
+            border: 2px solid #0056b3;
+            border-radius: 20px;
+            color: #0056b3;
+            background: white;
+            cursor: pointer;
+            font-size: 15px;
+        }
+        .mode-switch input:checked + label {
+            background: #0056b3;
+            color: white;
+        }
+        .mode-switch input:focus-visible + label {
+            outline: 3px solid #ffc107;
+            outline-offset: 2px;
+        }
+        fieldset.optional-group {
+            grid-column: 1 / -1;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 10px 15px 15px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+        fieldset.optional-group legend {
+            font-weight: bold;
+            color: #555;
+            padding: 0 6px;
+        }
+        select {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+            background: white;
+        }
+        .hint {
+            font-size: 13px;
+            color: #666;
+            margin-top: 4px;
+        }
+        .warnings {
+            margin-top: 15px;
+            padding: 10px 15px;
+            border-radius: 5px;
+            background: #fff3cd;
+            color: #664d03;
+            font-size: 14px;
+            text-align: left;
+        }
+        .warnings p { margin: 4px 0; }
+        .actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            margin: 20px 0 10px;
+        }
+        .actions button {
+            margin: 0;
+            background-color: #6c757d;
+            padding: 10px 18px;
+        }
+        .actions button:hover { background-color: #5a6268; }
+        .actions button.link-btn { background-color: #0f7686; }
+        .actions button.link-btn:hover { background-color: #0c5f6b; }
+        button.primary { background-color: #1e7e34; }
+        button.primary:hover { background-color: #186029; }
+
+        /* Outcome and quorum graphics */
+        .graphic {
+            background: white;
+            padding: 24px;
+            text-align: center;
+            max-width: 720px;
+            margin: 0 auto;
+            color: #333;
+        }
+        .g-title {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 14px;
+            overflow-wrap: anywhere;
+        }
+        .g-status {
+            display: inline-block;
+            font-size: 36px;
+            font-weight: bold;
+            letter-spacing: 1px;
+            padding: 8px 28px;
+            border-radius: 10px;
+            border: 4px solid;
+            margin-bottom: 8px;
+        }
+        .g-status.passed, .g-status.met { color: #1e7e34; border-color: #1e7e34; background: #e8f5ec; }
+        .g-status.failed, .g-status.notmet { color: #b02a37; border-color: #b02a37; background: #fbeaec; border-style: dashed; }
+        .g-status.noquorum { color: #664d03; border-color: #b8860b; background: #fff3cd; border-style: double; }
+        .g-sub {
+            font-size: 14px;
+            color: #555;
+            margin-bottom: 18px;
+        }
+        .split-bar {
+            position: relative;
+            display: flex;
+            height: 34px;
+            border-radius: 6px;
+            overflow: hidden;
+            background: #e9ecef;
+            margin: 10px 0 6px;
+        }
+        .split-bar .yes { background: #28a745; }
+        .split-bar .no { background: #dc3545; }
+        .split-bar .fill { background: #007bff; }
+        .marker {
+            position: absolute;
+            top: -4px;
+            bottom: -4px;
+            width: 3px;
+            background: #000;
+            transform: translateX(-1px);
+        }
+        .bar-wrap { position: relative; }
+        .bar-wrap .split-bar { overflow: hidden; }
+        .counts {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            gap: 8px 16px;
+            font-size: 18px;
+            margin-bottom: 16px;
+        }
+        .counts .item { font-weight: bold; }
+        .swatch {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            margin-right: 6px;
+            border-radius: 2px;
+        }
+        .present-box {
+            border: 2px dashed #6c757d;
+            border-radius: 8px;
+            padding: 8px 12px;
+            margin: 8px auto;
+            font-size: 16px;
+            background: #f8f9fa;
+        }
+        .g-line {
+            font-size: 16px;
+            margin-top: 12px;
+        }
+        .g-line.quorum-line {
+            padding-top: 10px;
+            border-top: 1px solid #ddd;
+        }
+        .tag-row { font-size: 12px; color: #666; margin-top: 4px; }
+
         /* Toast notification styles */
         .toast {
             position: fixed;
@@ -382,6 +567,13 @@
             .quorum-marker {
                 width: 2px;
             }
+
+            .graphic { padding: 14px 8px; }
+            .g-title { font-size: 20px; }
+            .g-status { font-size: 28px; padding: 6px 18px; }
+            .counts { flex-direction: column; font-size: 16px; }
+            .mode-switch label { font-size: 14px; padding: 9px 12px; }
+            .actions button { width: 100%; }
         }
     </style>
 </head>
@@ -389,6 +581,17 @@
     <div class="container">
         <h1>Faculty Senate Vote Tracker</h1>
         
+        <fieldset class="mode-switch">
+            <legend>Graphic type</legend>
+            <input type="radio" name="mode" id="mode-classic" value="classic" checked>
+            <label for="mode-classic">Participation (classic)</label>
+            <input type="radio" name="mode" id="mode-motion" value="motion">
+            <label for="mode-motion">Motion outcome</label>
+            <input type="radio" name="mode" id="mode-quorum" value="quorum">
+            <label for="mode-quorum">Quorum call</label>
+        </fieldset>
+
+        <section id="panel-classic">
         <div class="input-section">
             <div class="input-group">
                 <label for="voteTitle">Vote Title:</label>
@@ -469,6 +672,83 @@
                 </div>
             </div>
         </div>
+        </section>
+
+        <section id="panel-motion" hidden>
+            <div class="input-section">
+                <div class="input-group">
+                    <label for="motionTitle">Motion Title:</label>
+                    <input type="text" id="motionTitle" placeholder="Enter motion name">
+                </div>
+                <div class="input-group">
+                    <label for="motionYes">Yes:</label>
+                    <input type="number" id="motionYes" min="0" step="1" placeholder="Yes votes">
+                </div>
+                <div class="input-group">
+                    <label for="motionNo">No:</label>
+                    <input type="number" id="motionNo" min="0" step="1" placeholder="No votes">
+                </div>
+                <div class="input-group">
+                    <label for="motionPresent">Present:</label>
+                    <input type="number" id="motionPresent" min="0" step="1" placeholder="Present ballots">
+                    <span class="hint">Present is a ballot choice and is not counted in the decision.</span>
+                </div>
+                <div class="input-group">
+                    <label for="motionRule">Passes with:</label>
+                    <select id="motionRule">
+                        <option value="majority">Majority (Yes more than No)</option>
+                        <option value="two-thirds">Two-thirds of Yes and No</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label for="motionEligible">Eligible Voters (optional):</label>
+                    <input type="number" id="motionEligible" min="0" step="1" placeholder="Signed in who could vote">
+                </div>
+                <fieldset class="optional-group">
+                    <legend>Quorum line (optional)</legend>
+                    <div class="input-group">
+                        <label for="motionMembers">Voting Members:</label>
+                        <input type="number" id="motionMembers" min="0" step="1" placeholder="Roster size">
+                    </div>
+                    <div class="input-group">
+                        <label for="motionSignedIn">Signed In:</label>
+                        <input type="number" id="motionSignedIn" min="0" step="1" placeholder="Number signed in">
+                    </div>
+                </fieldset>
+            </div>
+            <button type="button" class="primary" id="motionUpdate">Update Motion Graphic</button>
+            <div id="motionError" class="error" role="alert"></div>
+            <div id="motionWarnings" class="warnings" role="status" hidden></div>
+            <div id="motionActions"></div>
+            <div id="motionGraphic"></div>
+        </section>
+
+        <section id="panel-quorum" hidden>
+            <div class="input-section">
+                <div class="input-group">
+                    <label for="quorumTitle">Title:</label>
+                    <input type="text" id="quorumTitle" placeholder="Enter meeting or call name">
+                </div>
+                <div class="input-group">
+                    <label for="quorumMembers">Voting Members:</label>
+                    <input type="number" id="quorumMembers" min="1" step="1" placeholder="Roster size">
+                </div>
+                <div class="input-group">
+                    <label for="quorumSignedIn">Signed In:</label>
+                    <input type="number" id="quorumSignedIn" min="0" step="1" placeholder="Number signed in">
+                </div>
+                <div class="input-group">
+                    <label for="quorumThreshold">Quorum Threshold:</label>
+                    <input type="number" id="quorumThreshold" min="1" step="1" placeholder="Majority of members">
+                    <span class="hint">Filled in as a majority of voting members. Change it to override.</span>
+                </div>
+            </div>
+            <button type="button" class="primary" id="quorumUpdate">Update Quorum Graphic</button>
+            <div id="quorumError" class="error" role="alert"></div>
+            <div id="quorumWarnings" class="warnings" role="status" hidden></div>
+            <div id="quorumActions"></div>
+            <div id="quorumGraphic"></div>
+        </section>
     </div>
 
     <script src="tally.js"></script>

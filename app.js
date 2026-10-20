@@ -192,39 +192,8 @@ function copyAltText(event) {
 }
 
 function exportAsImage() {
-    const vizArea = document.getElementById('vizArea');
-
-    // Generate and copy alt text for accessibility
-    const altText = generateAltText();
-
-    // Copy alt text to clipboard silently
-    navigator.clipboard.writeText(altText).then(function() {
-        console.log('Alt text copied to clipboard for accessibility');
-    }).catch(function(err) {
-        console.log('Could not auto-copy alt text:', err);
-    });
-
-    // Export the image
-    html2canvas(vizArea, {
-        backgroundColor: '#ffffff',
-        scale: 2,
-        useCORS: true,
-        allowTaint: true
-    }).then(function(canvas) {
-        const link = document.createElement('a');
-        const voteTitle = document.getElementById('voteTitle').value.trim() || 'Vote-Tracker';
-        const fileName = voteTitle.replace(/[^a-zA-Z0-9]/g, '-') + '.png';
-
-        link.download = fileName;
-        link.href = canvas.toDataURL();
-        link.click();
-
-        // Show toast notification about alt text
-        showToast('Image downloaded! Alt text copied to clipboard for PowerPoint accessibility.', 'success');
-    }).catch(function(error) {
-        console.error('Error generating image:', error);
-        showToast('Error generating image. Please try again.', 'error');
-    });
+    const voteTitle = document.getElementById('voteTitle').value.trim() || 'Vote-Tracker';
+    exportElement(document.getElementById('vizArea'), fileSafe(voteTitle) + '.png', generateAltText());
 }
 
 function generateShareLink(event) {
@@ -264,7 +233,17 @@ function generateShareLink(event) {
 
 function loadFromUrlParams() {
     const urlParams = new URLSearchParams(window.location.search);
-    
+    const mode = urlParams.get('mode');
+
+    if (mode === 'motion') {
+        loadMotionParams(urlParams);
+        return;
+    }
+    if (mode === 'quorum') {
+        loadQuorumParams(urlParams);
+        return;
+    }
+
     const title = urlParams.get('title');
     const attendance = urlParams.get('attendance');
     const quorum = urlParams.get('quorum');
@@ -289,7 +268,353 @@ function loadFromUrlParams() {
     }
 }
 
-// Load URL parameters on page load
+// ---- Shared helpers for the outcome, quorum and session graphics ----
+
+function fileSafe(name) {
+    return name.replace(/[^a-zA-Z0-9]/g, '-');
+}
+
+function h(tag, className, text) {
+    const el = document.createElement(tag);
+    if (className) el.className = className;
+    if (text !== undefined) el.textContent = text;
+    return el;
+}
+
+function readNum(id) {
+    const v = document.getElementById(id).value.trim();
+    return v === '' ? null : Number(v);
+}
+
+function setValue(id, value) {
+    if (value !== null && value !== undefined && value !== '') document.getElementById(id).value = value;
+}
+
+function paramNum(params, key) {
+    const v = params.get(key);
+    return v === null || v === '' ? null : Number(v);
+}
+
+function pushNum(params, key, value) {
+    if (value !== null && value !== undefined && !Number.isNaN(value)) params.set(key, value);
+}
+
+function pageUrl(params) {
+    return window.location.origin + window.location.pathname + '?' + params.toString();
+}
+
+function exportElement(el, fileName, altText) {
+    // Alt text goes to the clipboard first so it can be pasted next to the PNG in PowerPoint.
+    navigator.clipboard.writeText(altText).catch(function(err) {
+        console.log('Could not auto-copy alt text:', err);
+    });
+
+    return html2canvas(el, {
+        backgroundColor: '#ffffff',
+        scale: 2,
+        useCORS: true,
+        allowTaint: true
+    }).then(function(canvas) {
+        const link = document.createElement('a');
+        link.download = fileName;
+        link.href = canvas.toDataURL();
+        link.click();
+        showToast('Image downloaded! Alt text copied to clipboard for PowerPoint accessibility.', 'success');
+    }).catch(function(error) {
+        console.error('Error generating image:', error);
+        showToast('Error generating image. Please try again.', 'error');
+    });
+}
+
+function copyText(button, text, doneLabel, promptLabel) {
+    const originalText = button.textContent;
+    navigator.clipboard.writeText(text).then(function() {
+        button.textContent = doneLabel;
+        setTimeout(function() { button.textContent = originalText; }, 1500);
+    }).catch(function() {
+        prompt(promptLabel, text);
+    });
+}
+
+// Builds the Export PNG / Copy Alt Text / Copy Link row for one graphic.
+function makeActions(opts) {
+    const row = h('div', 'actions');
+    const exportBtn = h('button', '', 'Export PNG');
+    exportBtn.type = 'button';
+    exportBtn.addEventListener('click', function() {
+        exportElement(opts.target, opts.fileName, opts.altText);
+    });
+    const altBtn = h('button', '', 'Copy Alt Text');
+    altBtn.type = 'button';
+    altBtn.addEventListener('click', function() {
+        copyText(altBtn, opts.altText, 'Alt Text Copied!', 'Copy this alt text for PowerPoint accessibility:');
+    });
+    row.append(exportBtn, altBtn);
+    if (opts.link) {
+        const linkBtn = h('button', 'link-btn', 'Copy Link');
+        linkBtn.type = 'button';
+        linkBtn.addEventListener('click', function() {
+            copyText(linkBtn, opts.link, 'Copied!', 'Copy this link to share your results:');
+        });
+        row.append(linkBtn);
+    }
+    if (opts.extra) opts.extra.forEach(function(b) { row.append(b); });
+    return row;
+}
+
+function statusClass(status) {
+    return { 'PASSED': 'passed', 'FAILED': 'failed', 'NO QUORUM': 'noquorum', 'MET': 'met', 'NOT MET': 'notmet' }[status];
+}
+
+function swatchItem(color, label) {
+    const item = h('div', 'item');
+    const sw = h('span', 'swatch');
+    sw.style.background = color;
+    item.append(sw, document.createTextNode(label));
+    return item;
+}
+
+function renderMotion(container, title, outcome, quorum) {
+    container.textContent = '';
+    const g = h('div', 'graphic');
+    g.setAttribute('role', 'img');
+    g.setAttribute('aria-label', Tally.motionAltText(title, outcome, quorum));
+
+    g.append(h('div', 'g-title', title));
+    g.append(h('div', 'g-status ' + statusClass(outcome.status), outcome.status));
+    const ruleText = outcome.rule === 'two-thirds'
+        ? 'Passes with two-thirds of Yes and No votes'
+        : 'Passes with a majority of Yes and No votes';
+    g.append(h('div', 'g-sub', outcome.status === 'NO QUORUM' ? 'Quorum was not met. ' + ruleText + '.' : ruleText));
+
+    const wrap = h('div', 'bar-wrap');
+    const bar = h('div', 'split-bar');
+    const yes = h('div', 'yes');
+    yes.style.width = outcome.yesPct + '%';
+    const no = h('div', 'no');
+    no.style.width = outcome.noPct + '%';
+    bar.append(yes, no);
+    const marker = h('div', 'marker');
+    marker.style.left = (outcome.rule === 'two-thirds' ? 100 * 2 / 3 : 50) + '%';
+    wrap.append(bar, marker);
+    g.append(wrap);
+
+    const counts = h('div', 'counts');
+    counts.append(
+        swatchItem('#28a745', 'Yes ' + outcome.yes + ' (' + Tally.fmtPct(outcome.yesPct) + '%)'),
+        swatchItem('#dc3545', 'No ' + outcome.no + ' (' + Tally.fmtPct(outcome.noPct) + '%)')
+    );
+    g.append(counts);
+    g.append(h('div', 'tag-row', 'Percentages are of Yes and No votes. Black line: ' +
+        (outcome.rule === 'two-thirds' ? 'two-thirds' : 'majority') + ' threshold.'));
+
+    g.append(h('div', 'present-box', 'Present: ' + outcome.present + ' (not counted in the decision)'));
+
+    if (outcome.participationPct !== null) {
+        g.append(h('div', 'g-line', 'Ballots cast: ' + outcome.ballotsCast + ' of ' + outcome.eligible +
+            ' eligible voters (' + Tally.fmtPct(outcome.participationPct) + '%)'));
+    }
+    if (quorum) {
+        g.append(h('div', 'g-line quorum-line', 'Quorum: ' + quorum.signedIn + ' signed in, ' + quorum.threshold +
+            ' needed: ' + (quorum.met ? 'MET' : 'NOT MET')));
+    }
+    container.append(g);
+    return g;
+}
+
+function renderQuorum(container, title, call) {
+    container.textContent = '';
+    const g = h('div', 'graphic');
+    g.setAttribute('role', 'img');
+    g.setAttribute('aria-label', Tally.quorumAltText(title, call));
+
+    g.append(h('div', 'g-title', title));
+    const word = call.met ? 'MET' : 'NOT MET';
+    g.append(h('div', 'g-status ' + statusClass(word), word));
+    g.append(h('div', 'g-sub', 'Quorum is a majority of voting members'));
+
+    const wrap = h('div', 'bar-wrap');
+    const bar = h('div', 'split-bar');
+    const fill = h('div', 'fill');
+    fill.style.width = Math.min(100, call.members > 0 ? call.signedIn / call.members * 100 : 0) + '%';
+    bar.append(fill);
+    const marker = h('div', 'marker');
+    marker.style.left = Math.min(100, call.members > 0 ? call.threshold / call.members * 100 : 0) + '%';
+    wrap.append(bar, marker);
+    g.append(wrap);
+
+    const counts = h('div', 'counts');
+    counts.append(
+        swatchItem('#007bff', 'Signed In ' + call.signedIn + ' of ' + call.members + ' voting members'),
+        h('div', 'item', 'Quorum threshold ' + call.threshold)
+    );
+    g.append(counts);
+    g.append(h('div', 'tag-row', 'Black line: quorum threshold.'));
+    container.append(g);
+    return g;
+}
+
+function showMessages(prefix, errors, warnings) {
+    document.getElementById(prefix + 'Error').textContent = errors.join(' ');
+    const w = document.getElementById(prefix + 'Warnings');
+    w.textContent = '';
+    warnings.forEach(function(text) { w.append(h('p', '', text)); });
+    w.hidden = warnings.length === 0;
+}
+
+function clearResult(prefix) {
+    document.getElementById(prefix + 'Graphic').textContent = '';
+    document.getElementById(prefix + 'Actions').textContent = '';
+}
+
+// ---- Motion outcome mode ----
+
+function readMotionInputs() {
+    return {
+        title: document.getElementById('motionTitle').value.trim(),
+        yes: readNum('motionYes'),
+        no: readNum('motionNo'),
+        present: readNum('motionPresent'),
+        rule: document.getElementById('motionRule').value,
+        eligible: readNum('motionEligible'),
+        members: readNum('motionMembers'),
+        signedIn: readNum('motionSignedIn')
+    };
+}
+
+function motionLink(m) {
+    const params = new URLSearchParams();
+    params.set('mode', 'motion');
+    params.set('title', m.title);
+    pushNum(params, 'yes', m.yes);
+    pushNum(params, 'no', m.no);
+    pushNum(params, 'present', m.present);
+    params.set('rule', m.rule);
+    pushNum(params, 'eligible', m.eligible);
+    pushNum(params, 'members', m.members);
+    pushNum(params, 'signedin', m.signedIn);
+    return pageUrl(params);
+}
+
+function updateMotion() {
+    const m = readMotionInputs();
+    clearResult('motion');
+    if (!m.title) return showMessages('motion', ['Please enter a motion title.'], []);
+    if (m.yes === null || m.no === null || m.present === null) {
+        return showMessages('motion', ['Please enter Yes, No and Present counts (0 if none).'], []);
+    }
+    if ((m.members === null) !== (m.signedIn === null)) {
+        return showMessages('motion', ['Enter both Voting Members and Signed In for the quorum line, or leave both blank.'], []);
+    }
+    const check = Tally.checkCounts(m);
+    if (check.errors.length) return showMessages('motion', check.errors, []);
+
+    const quorum = m.members === null ? null : Tally.quorumCall({ members: m.members, signedIn: m.signedIn });
+    const outcome = Tally.motionOutcome({
+        yes: m.yes, no: m.no, present: m.present, rule: m.rule, eligible: m.eligible,
+        quorumMet: quorum ? quorum.met : null
+    });
+    showMessages('motion', [], check.warnings);
+
+    const graphic = renderMotion(document.getElementById('motionGraphic'), m.title, outcome, quorum);
+    document.getElementById('motionActions').append(makeActions({
+        target: graphic,
+        fileName: fileSafe(m.title) + '-outcome.png',
+        altText: Tally.motionAltText(m.title, outcome, quorum),
+        link: motionLink(m)
+    }));
+}
+
+function loadMotionParams(params) {
+    setMode('motion');
+    setValue('motionTitle', Tally.readTitle(params.get('title')));
+    setValue('motionYes', params.get('yes'));
+    setValue('motionNo', params.get('no'));
+    setValue('motionPresent', params.get('present'));
+    if (params.get('rule') === 'two-thirds') document.getElementById('motionRule').value = 'two-thirds';
+    setValue('motionEligible', params.get('eligible'));
+    setValue('motionMembers', params.get('members'));
+    setValue('motionSignedIn', params.get('signedin'));
+    updateMotion();
+}
+
+// ---- Quorum call mode ----
+
+function quorumLink(title, members, signedIn, threshold) {
+    const params = new URLSearchParams();
+    params.set('mode', 'quorum');
+    params.set('title', title);
+    pushNum(params, 'members', members);
+    pushNum(params, 'signedin', signedIn);
+    pushNum(params, 'threshold', threshold);
+    return pageUrl(params);
+}
+
+function updateQuorum() {
+    const title = document.getElementById('quorumTitle').value.trim();
+    const members = readNum('quorumMembers');
+    const signedIn = readNum('quorumSignedIn');
+    const threshold = readNum('quorumThreshold');
+    clearResult('quorum');
+    if (!title) return showMessages('quorum', ['Please enter a title.'], []);
+    if (members === null || signedIn === null) {
+        return showMessages('quorum', ['Please enter Voting Members and Signed In.'], []);
+    }
+    const check = Tally.checkCounts({ yes: 0, no: 0, present: 0, members, signedIn });
+    if (check.errors.length) return showMessages('quorum', check.errors, []);
+    if (threshold !== null && (!Number.isInteger(threshold) || threshold < 1)) {
+        return showMessages('quorum', ['Quorum Threshold must be a whole number, one or more.'], []);
+    }
+    const call = Tally.quorumCall({ members, signedIn, threshold });
+    showMessages('quorum', [], check.warnings);
+
+    const graphic = renderQuorum(document.getElementById('quorumGraphic'), title, call);
+    document.getElementById('quorumActions').append(makeActions({
+        target: graphic,
+        fileName: fileSafe(title) + '-quorum.png',
+        altText: Tally.quorumAltText(title, call),
+        link: quorumLink(title, members, signedIn, threshold)
+    }));
+}
+
+function loadQuorumParams(params) {
+    setMode('quorum');
+    setValue('quorumTitle', Tally.readTitle(params.get('title')));
+    setValue('quorumMembers', params.get('members'));
+    setValue('quorumSignedIn', params.get('signedin'));
+    setValue('quorumThreshold', params.get('threshold'));
+    if (params.get('threshold')) document.getElementById('quorumThreshold').dataset.touched = '1';
+    updateQuorum();
+}
+
+// Prefill the threshold from the roster size until the user edits it.
+function syncThreshold() {
+    const input = document.getElementById('quorumThreshold');
+    const members = readNum('quorumMembers');
+    if (input.dataset.touched === '1' || members === null || !(members > 0)) return;
+    input.value = Tally.quorumThreshold(members);
+}
+
+// ---- Mode switching ----
+
+const MODES = ['classic', 'motion', 'quorum'];
+
+function setMode(mode) {
+    MODES.forEach(function(m) {
+        document.getElementById('panel-' + m).hidden = m !== mode;
+    });
+    document.getElementById('mode-' + mode).checked = true;
+}
+
 window.onload = function() {
+    document.querySelectorAll('input[name="mode"]').forEach(function(r) {
+        r.addEventListener('change', function() { setMode(r.value); });
+    });
+    document.getElementById('motionUpdate').addEventListener('click', updateMotion);
+    document.getElementById('quorumUpdate').addEventListener('click', updateQuorum);
+    document.getElementById('quorumMembers').addEventListener('input', syncThreshold);
+    document.getElementById('quorumThreshold').addEventListener('input', function(e) {
+        e.target.dataset.touched = e.target.value === '' ? '0' : '1';
+    });
     loadFromUrlParams();
 };

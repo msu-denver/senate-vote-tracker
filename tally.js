@@ -38,7 +38,10 @@ const Tally = (function () {
         else passes = yes > no;
         let status = passes ? STATUS.PASSED : STATUS.FAILED;
         if (quorumMet === false) status = STATUS.NO_QUORUM;
-        return { yes, no, present, rule, decided, ballotsCast, yesPct, noPct, presentPct, participationPct, status };
+        return {
+            yes, no, present, rule, decided, ballotsCast, yesPct, noPct, presentPct, participationPct, status,
+            eligible: isGiven(eligible) ? eligible : null
+        };
     }
 
     function checkCounts({ yes, no, present, eligible, members, signedIn }) {
@@ -78,7 +81,7 @@ const Tally = (function () {
             'Present ' + o.present + ', not counted in the decision. ' +
             'Passage requires a ' + ruleLabel(o.rule) + ' of Yes and No votes. ';
         if (o.participationPct !== null) {
-            text += 'Ballots cast: ' + o.ballotsCast + ', ' + fmtPct(o.participationPct) + '% of eligible voters. ';
+            text += 'Ballots cast: ' + o.ballotsCast + ' of ' + o.eligible + ' eligible voters (' + fmtPct(o.participationPct) + '%). ';
         }
         if (quorum) text += quorumSentence(quorum) + ' ';
         return text.trim();
