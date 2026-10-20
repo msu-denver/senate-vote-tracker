@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Faculty Senate Vote Tracker</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+    <script src="vendor/chart.umd.min.js"></script>
+    <script src="vendor/html2canvas.min.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -40,7 +40,7 @@
             font-weight: bold;
             color: #555;
         }
-        input[type="text"], input[type="number"] {
+        input[type="text"], input[type="number"], input[type="date"] {
             padding: 10px;
             border: 1px solid #ddd;
             border-radius: 5px;
@@ -162,6 +162,245 @@
             box-shadow: 0 0 10px rgba(255, 193, 7, 0.8);
         }
 
+        /* Modes */
+        [hidden] { display: none !important; }
+        .mode-switch {
+            border: none;
+            padding: 0;
+            margin: 0 0 25px 0;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+        }
+        .mode-switch legend {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            overflow: hidden;
+            clip: rect(0 0 0 0);
+        }
+        .mode-switch input {
+            position: absolute;
+            opacity: 0;
+            width: 1px;
+            height: 1px;
+        }
+        .mode-switch label {
+            margin: 0;
+            padding: 10px 16px;
+            border: 2px solid #0056b3;
+            border-radius: 20px;
+            color: #0056b3;
+            background: white;
+            cursor: pointer;
+            font-size: 15px;
+        }
+        .mode-switch input:checked + label {
+            background: #0056b3;
+            color: white;
+        }
+        .mode-switch input:focus-visible + label {
+            outline: 3px solid #ffc107;
+            outline-offset: 2px;
+        }
+        fieldset.optional-group {
+            grid-column: 1 / -1;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 10px 15px 15px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+        fieldset.optional-group legend {
+            font-weight: bold;
+            color: #555;
+            padding: 0 6px;
+        }
+        select {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+            background: white;
+        }
+        .hint {
+            font-size: 13px;
+            color: #666;
+            margin-top: 4px;
+        }
+        .warnings {
+            margin-top: 15px;
+            padding: 10px 15px;
+            border-radius: 5px;
+            background: #fff3cd;
+            color: #664d03;
+            font-size: 14px;
+            text-align: left;
+        }
+        .warnings p { margin: 4px 0; }
+        .actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            margin: 20px 0 10px;
+        }
+        .actions button {
+            margin: 0;
+            background-color: #6c757d;
+            padding: 10px 18px;
+        }
+        .actions button:hover { background-color: #5a6268; }
+        .actions button.link-btn { background-color: #0f7686; }
+        .actions button.link-btn:hover { background-color: #0c5f6b; }
+        button.primary { background-color: #1e7e34; }
+        button.primary:hover { background-color: #186029; }
+
+        /* Outcome and quorum graphics */
+        .graphic {
+            background: white;
+            padding: 24px;
+            text-align: center;
+            max-width: 720px;
+            margin: 0 auto;
+            color: #333;
+        }
+        .g-title {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 14px;
+            overflow-wrap: break-word;
+        }
+        .g-status {
+            display: inline-block;
+            font-size: 36px;
+            font-weight: bold;
+            letter-spacing: 1px;
+            padding: 8px 28px;
+            border-radius: 10px;
+            border: 4px solid;
+            margin-bottom: 8px;
+        }
+        .g-status.passed, .g-status.met { color: #1e7e34; border-color: #1e7e34; background: #e8f5ec; }
+        .g-status.failed, .g-status.notmet { color: #b02a37; border-color: #b02a37; background: #fbeaec; border-style: dashed; }
+        .g-status.noquorum { color: #664d03; border-color: #b8860b; background: #fff3cd; border-style: double; }
+        .g-sub {
+            font-size: 14px;
+            color: #555;
+            margin-bottom: 18px;
+        }
+        .split-bar {
+            position: relative;
+            display: flex;
+            height: 34px;
+            border-radius: 6px;
+            overflow: hidden;
+            background: #e9ecef;
+            margin: 10px 0 6px;
+        }
+        .split-bar .yes { background: #28a745; }
+        .split-bar .no { background: #dc3545; }
+        .split-bar .fill { background: #007bff; }
+        .marker {
+            position: absolute;
+            top: -4px;
+            bottom: -4px;
+            width: 3px;
+            background: #000;
+            transform: translateX(-1px);
+        }
+        .bar-wrap { position: relative; }
+        .bar-wrap .split-bar { overflow: hidden; }
+        .counts {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            gap: 8px 16px;
+            font-size: 18px;
+            margin-bottom: 16px;
+        }
+        .counts .item { font-weight: bold; }
+        .swatch {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            margin-right: 6px;
+            border-radius: 2px;
+        }
+        .present-box {
+            border: 2px dashed #6c757d;
+            border-radius: 8px;
+            padding: 8px 12px;
+            margin: 8px auto;
+            font-size: 16px;
+            background: #f8f9fa;
+        }
+        .g-line {
+            font-size: 16px;
+            margin-top: 12px;
+        }
+        .g-line.quorum-line {
+            padding-top: 10px;
+            border-top: 1px solid #ddd;
+        }
+        .tag-row { font-size: 12px; color: #666; margin-top: 4px; }
+
+        /* Session mode */
+        .input-group.wide { grid-column: 1 / -1; }
+        .motion-row {
+            margin: 0 0 15px 0;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        }
+        /* The rule select needs two tracks to show its full option text; a phone has only one track. */
+        @media (min-width: 769px) {
+            .motion-row .rule-field { grid-column: span 2; }
+        }
+        .motion-row .remove-btn {
+            align-self: end;
+            margin: 0;
+            background-color: #6c757d;
+            padding: 10px 16px;
+        }
+        .motion-row .remove-btn:hover { background-color: #5a6268; }
+        .session-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        button.secondary { background-color: #0056b3; }
+        button.secondary:hover { background-color: #004494; }
+        .session-item { margin-top: 30px; }
+        .session-item h2 {
+            font-size: 18px;
+            color: #333;
+            text-align: center;
+            margin: 0;
+        }
+        .summary-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 12px;
+            font-size: 15px;
+        }
+        .summary-table th, .summary-table td {
+            border: 1px solid #ccc;
+            padding: 6px 8px;
+            text-align: center;
+        }
+        .summary-table th { background: #f1f3f5; }
+        /* A fixed share with max-width 0 stops one long unbroken title from widening the table past
+           the graphic, so break-word splits only that token; ordinary titles still wrap between words. */
+        .summary-table td:first-child, .summary-table th:first-child {
+            text-align: left; overflow-wrap: break-word; width: 40%; max-width: 0;
+        }
+        .summary-table .res { font-weight: bold; }
+        .summary-table .res.passed, .summary-table .res.met { color: #1e7e34; }
+        .summary-table .res.failed, .summary-table .res.notmet { color: #b02a37; }
+        .summary-table .res.noquorum { color: #664d03; }
+        .g-date { font-size: 16px; color: #555; margin-bottom: 8px; }
+
         /* Toast notification styles */
         .toast {
             position: fixed;
@@ -219,7 +458,7 @@
                 margin-bottom: 15px;
             }
             
-            input[type="text"], input[type="number"] {
+            input[type="text"], input[type="number"], input[type="date"] {
                 padding: 12px;
                 font-size: 16px; /* Prevents zoom on iOS */
             }
@@ -382,6 +621,16 @@
             .quorum-marker {
                 width: 2px;
             }
+
+            .graphic { padding: 14px 8px; }
+            .g-title { font-size: 20px; }
+            .g-status { font-size: 28px; padding: 6px 18px; }
+            .counts { flex-direction: column; font-size: 16px; }
+            .mode-switch label { font-size: 14px; padding: 9px 12px; }
+            .actions button { width: 100%; }
+            .summary-table { font-size: 13px; }
+            .summary-table th, .summary-table td { padding: 5px 4px; }
+            .session-buttons button { width: 100%; }
         }
     </style>
 </head>
@@ -389,6 +638,19 @@
     <div class="container">
         <h1>Faculty Senate Vote Tracker</h1>
         
+        <fieldset class="mode-switch">
+            <legend>Graphic type</legend>
+            <input type="radio" name="mode" id="mode-classic" value="classic" checked>
+            <label for="mode-classic">Participation (classic)</label>
+            <input type="radio" name="mode" id="mode-motion" value="motion">
+            <label for="mode-motion">Motion outcome</label>
+            <input type="radio" name="mode" id="mode-quorum" value="quorum">
+            <label for="mode-quorum">Quorum call</label>
+            <input type="radio" name="mode" id="mode-session" value="session">
+            <label for="mode-session">Meeting session</label>
+        </fieldset>
+
+        <section id="panel-classic">
         <div class="input-section">
             <div class="input-group">
                 <label for="voteTitle">Vote Title:</label>
@@ -469,316 +731,123 @@
                 </div>
             </div>
         </div>
+        </section>
+
+        <section id="panel-motion" hidden>
+            <div class="input-section">
+                <div class="input-group">
+                    <label for="motionTitle">Motion Title:</label>
+                    <input type="text" id="motionTitle" placeholder="Enter motion name">
+                </div>
+                <div class="input-group">
+                    <label for="motionYes">Yes:</label>
+                    <input type="number" id="motionYes" min="0" step="1" placeholder="Yes votes">
+                </div>
+                <div class="input-group">
+                    <label for="motionNo">No:</label>
+                    <input type="number" id="motionNo" min="0" step="1" placeholder="No votes">
+                </div>
+                <div class="input-group">
+                    <label for="motionPresent">Present:</label>
+                    <input type="number" id="motionPresent" min="0" step="1" placeholder="Present ballots">
+                    <span class="hint">Present is a ballot choice and is not counted in the decision.</span>
+                </div>
+                <div class="input-group">
+                    <label for="motionRule">Passes with:</label>
+                    <select id="motionRule">
+                        <option value="majority">Majority (Yes more than No)</option>
+                        <option value="two-thirds">Two-thirds of Yes and No</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label for="motionEligible">Eligible Voters (optional):</label>
+                    <input type="number" id="motionEligible" min="0" step="1" placeholder="Signed in who could vote">
+                </div>
+                <fieldset class="optional-group">
+                    <legend>Quorum line (optional)</legend>
+                    <div class="input-group">
+                        <label for="motionMembers">Voting Members:</label>
+                        <input type="number" id="motionMembers" min="0" step="1" placeholder="Roster size">
+                    </div>
+                    <div class="input-group">
+                        <label for="motionSignedIn">Signed In:</label>
+                        <input type="number" id="motionSignedIn" min="0" step="1" placeholder="Number signed in">
+                    </div>
+                </fieldset>
+            </div>
+            <button type="button" class="primary" id="motionUpdate">Update Motion Graphic</button>
+            <div id="motionError" class="error" role="alert"></div>
+            <div id="motionWarnings" class="warnings" role="status" hidden></div>
+            <div id="motionActions"></div>
+            <div id="motionGraphic"></div>
+        </section>
+
+        <section id="panel-quorum" hidden>
+            <div class="input-section">
+                <div class="input-group">
+                    <label for="quorumTitle">Title:</label>
+                    <input type="text" id="quorumTitle" placeholder="Enter meeting or call name">
+                </div>
+                <div class="input-group">
+                    <label for="quorumMembers">Voting Members:</label>
+                    <input type="number" id="quorumMembers" min="1" step="1" placeholder="Roster size">
+                </div>
+                <div class="input-group">
+                    <label for="quorumSignedIn">Signed In:</label>
+                    <input type="number" id="quorumSignedIn" min="0" step="1" placeholder="Number signed in">
+                </div>
+                <div class="input-group">
+                    <label for="quorumThreshold">Quorum Threshold:</label>
+                    <input type="number" id="quorumThreshold" min="1" step="1" placeholder="Majority of members">
+                    <span class="hint">Filled in as a majority of voting members. Change it to override.</span>
+                </div>
+            </div>
+            <button type="button" class="primary" id="quorumUpdate">Update Quorum Graphic</button>
+            <div id="quorumError" class="error" role="alert"></div>
+            <div id="quorumWarnings" class="warnings" role="status" hidden></div>
+            <div id="quorumActions"></div>
+            <div id="quorumGraphic"></div>
+        </section>
+
+        <section id="panel-session" hidden>
+            <div class="input-section">
+                <div class="input-group wide">
+                    <label for="sessionTitle">Meeting Title:</label>
+                    <input type="text" id="sessionTitle" placeholder="Enter meeting name">
+                </div>
+                <div class="input-group">
+                    <label for="sessionDate">Meeting Date (optional):</label>
+                    <input type="date" id="sessionDate">
+                </div>
+                <fieldset class="optional-group">
+                    <legend>Quorum call (optional)</legend>
+                    <div class="input-group">
+                        <label for="sessionMembers">Voting Members:</label>
+                        <input type="number" id="sessionMembers" min="1" step="1" placeholder="Roster size">
+                    </div>
+                    <div class="input-group">
+                        <label for="sessionSignedIn">Signed In:</label>
+                        <input type="number" id="sessionSignedIn" min="0" step="1" placeholder="Number signed in">
+                    </div>
+                    <div class="input-group">
+                        <label for="sessionThreshold">Quorum Threshold:</label>
+                        <input type="number" id="sessionThreshold" min="1" step="1" placeholder="Majority of members">
+                        <span class="hint">Filled in as a majority of voting members. Change it to override.</span>
+                    </div>
+                </fieldset>
+            </div>
+            <div id="sessionMotions"></div>
+            <div class="session-buttons">
+                <button type="button" class="secondary" id="sessionAdd">Add Motion</button>
+                <button type="button" class="primary" id="sessionUpdate">Update Session</button>
+            </div>
+            <div id="sessionError" class="error" role="alert"></div>
+            <div id="sessionWarnings" class="warnings" role="status" hidden></div>
+            <div id="sessionResults"></div>
+        </section>
     </div>
 
-    <script>
-        let dashboardChart = null;
-
-        function updateVisualization() {
-            const voteTitle = document.getElementById('voteTitle').value.trim();
-            const totalAttendance = parseInt(document.getElementById('totalAttendance').value);
-            const quorumRequired = parseInt(document.getElementById('quorumRequired').value);
-            const votesReceived = parseInt(document.getElementById('votesReceived').value);
-            const errorDiv = document.getElementById('errorMessage');
-            
-            errorDiv.textContent = '';
-            
-            if (!voteTitle) {
-                errorDiv.textContent = 'Please enter a vote title.';
-                return;
-            }
-            
-            if (isNaN(totalAttendance) || totalAttendance <= 0) {
-                errorDiv.textContent = 'Please enter a valid total attendance number.';
-                return;
-            }
-            
-            if (isNaN(quorumRequired) || quorumRequired <= 0) {
-                errorDiv.textContent = 'Please enter a valid quorum number.';
-                return;
-            }
-            
-            if (isNaN(votesReceived) || votesReceived < 0) {
-                errorDiv.textContent = 'Please enter a valid number of votes received.';
-                return;
-            }
-            
-            if (votesReceived > totalAttendance) {
-                errorDiv.textContent = 'Votes received cannot exceed total attendance.';
-                return;
-            }
-            
-            if (quorumRequired > totalAttendance) {
-                errorDiv.textContent = 'Quorum cannot exceed total attendance.';
-                return;
-            }
-            
-            const participationRate = (votesReceived / totalAttendance * 100).toFixed(1);
-            const quorumPercentage = (quorumRequired / totalAttendance * 100);
-            const votesPercentage = (votesReceived / totalAttendance * 100);
-            
-            document.getElementById('displayTitle').textContent = voteTitle;
-            document.getElementById('attendanceCount').textContent = totalAttendance;
-            document.getElementById('quorumCount').textContent = quorumRequired;
-            document.getElementById('votesCount').textContent = votesReceived;
-            document.getElementById('participationRate').textContent = participationRate + '%';
-            
-            document.getElementById('vizArea').style.display = 'block';
-            document.getElementById('exportSection').style.display = 'block';
-            
-            updateDashboard(votesReceived, totalAttendance, quorumRequired, votesPercentage, quorumPercentage);
-        }
-
-        function updateDashboard(votesReceived, totalAttendance, quorumRequired, votesPercentage, quorumPercentage) {
-            document.getElementById('dashboardAttendance').textContent = totalAttendance;
-            document.getElementById('dashboardQuorum').textContent = quorumRequired;
-            document.getElementById('dashboardVotes').textContent = votesReceived;
-            
-            const attendanceCard = document.getElementById('attendanceCard');
-            const quorumCard = document.getElementById('quorumCard');
-            const votesCard = document.getElementById('votesCard');
-            
-            attendanceCard.className = 'metric-card';
-            quorumCard.className = 'metric-card warning'; // Always yellow to match quorum indicators
-            votesCard.className = votesReceived >= quorumRequired ? 'metric-card success' : 'metric-card danger';
-            
-            const progressBar = document.getElementById('dashboardProgress');
-            const quorumMarker = document.getElementById('dashboardQuorumMarker');
-            
-            progressBar.style.width = votesPercentage + '%';
-            progressBar.className = votesPercentage >= quorumPercentage ? 'progress-bar' : 'progress-bar low';
-            quorumMarker.style.left = quorumPercentage + '%';
-            
-            const ctx = document.getElementById('dashboardChart').getContext('2d');
-            
-            if (dashboardChart) {
-                dashboardChart.destroy();
-            }
-            
-            // Create datasets with quorum visualization
-            const datasets = [];
-            
-            // Main voting data
-            datasets.push({
-                data: [votesReceived, totalAttendance - votesReceived],
-                backgroundColor: [
-                    votesReceived >= quorumRequired ? '#28a745' : '#dc3545',
-                    '#e9ecef'
-                ],
-                borderWidth: 0,
-                weight: 2
-            });
-            
-            // Quorum indicator ring
-            const quorumData = [quorumRequired, totalAttendance - quorumRequired];
-            datasets.push({
-                data: quorumData,
-                backgroundColor: ['#ffc107', 'transparent'],
-                borderWidth: 0,
-                weight: 0.5,
-                borderRadius: 0
-            });
-            
-            dashboardChart = new Chart(ctx, {
-                type: 'doughnut',
-                data: {
-                    labels: ['Voted', 'Not Voted'],
-                    datasets: datasets
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: true,
-                    plugins: {
-                        legend: { 
-                            position: 'bottom',
-                            labels: {
-                                boxWidth: 12,
-                                padding: 8,
-                                filter: function(legendItem, chartData) {
-                                    // Only show legend for the main dataset
-                                    return legendItem.datasetIndex === 0;
-                                }
-                            }
-                        },
-                        tooltip: {
-                            filter: function(tooltipItem) {
-                                // Only show tooltips for the main dataset
-                                return tooltipItem.datasetIndex === 0;
-                            }
-                        }
-                    },
-                    animation: { duration: 1000 }
-                }
-            });
-        }
-
-        function showToast(message, type = 'success') {
-            // Remove any existing toast
-            const existingToast = document.querySelector('.toast');
-            if (existingToast) {
-                existingToast.remove();
-            }
-
-            // Create new toast
-            const toast = document.createElement('div');
-            toast.className = `toast ${type}`;
-            toast.textContent = message;
-            document.body.appendChild(toast);
-
-            // Trigger show animation
-            setTimeout(() => toast.classList.add('show'), 10);
-
-            // Auto-hide after 3 seconds
-            setTimeout(() => {
-                toast.classList.remove('show');
-                setTimeout(() => toast.remove(), 300);
-            }, 3000);
-        }
-
-        function generateAltText() {
-            const voteTitle = document.getElementById('voteTitle').value.trim() || 'Untitled Vote';
-            const totalAttendance = parseInt(document.getElementById('totalAttendance').value) || 0;
-            const quorumRequired = parseInt(document.getElementById('quorumRequired').value) || 0;
-            const votesReceived = parseInt(document.getElementById('votesReceived').value) || 0;
-            const participationRate = totalAttendance > 0 ? ((votesReceived / totalAttendance) * 100).toFixed(1) : '0';
-            const quorumMet = votesReceived >= quorumRequired;
-
-            // Generate comprehensive alt text
-            const altText = `Faculty Senate Vote Tracker visualization for "${voteTitle}". ` +
-                `Total attendance: ${totalAttendance} members. ` +
-                `Quorum requirement: ${quorumRequired} votes. ` +
-                `Votes received: ${votesReceived} (${participationRate}% participation rate). ` +
-                `Quorum status: ${quorumMet ? 'Met' : 'Not met'} - ${quorumMet ? 'voting threshold achieved' : `${quorumRequired - votesReceived} more votes needed`}. ` +
-                `The dashboard displays three metric cards: Attendance (blue), Quorum (yellow), and Votes (${quorumMet ? 'green' : 'red'}). ` +
-                `A progress bar shows ${participationRate}% completion with a yellow quorum marker at ${quorumRequired} votes. ` +
-                `A donut chart visualizes ${votesReceived} voted versus ${totalAttendance - votesReceived} not voted.`;
-
-            return altText;
-        }
-
-        function copyAltText(event) {
-            const altText = generateAltText();
-            const button = event ? event.target : document.querySelector('button[onclick*="copyAltText"]');
-
-            // Copy alt text to clipboard
-            navigator.clipboard.writeText(altText).then(function() {
-                // Show success feedback
-                const originalText = button.textContent;
-                button.textContent = 'Alt Text Copied!';
-                button.style.backgroundColor = '#28a745';
-
-                setTimeout(function() {
-                    button.textContent = originalText;
-                    button.style.backgroundColor = '#6c757d';
-                }, 2000);
-            }).catch(function(error) {
-                // If clipboard fails, show in prompt for manual copying
-                prompt('Copy this alt text for PowerPoint accessibility:', altText);
-            });
-        }
-
-        function exportAsImage() {
-            const vizArea = document.getElementById('vizArea');
-
-            // Generate and copy alt text for accessibility
-            const altText = generateAltText();
-
-            // Copy alt text to clipboard silently
-            navigator.clipboard.writeText(altText).then(function() {
-                console.log('Alt text copied to clipboard for accessibility');
-            }).catch(function(err) {
-                console.log('Could not auto-copy alt text:', err);
-            });
-
-            // Export the image
-            html2canvas(vizArea, {
-                backgroundColor: '#ffffff',
-                scale: 2,
-                useCORS: true,
-                allowTaint: true
-            }).then(function(canvas) {
-                const link = document.createElement('a');
-                const voteTitle = document.getElementById('voteTitle').value.trim() || 'Vote-Tracker';
-                const fileName = voteTitle.replace(/[^a-zA-Z0-9]/g, '-') + '.png';
-
-                link.download = fileName;
-                link.href = canvas.toDataURL();
-                link.click();
-
-                // Show toast notification about alt text
-                showToast('Image downloaded! Alt text copied to clipboard for PowerPoint accessibility.', 'success');
-            }).catch(function(error) {
-                console.error('Error generating image:', error);
-                showToast('Error generating image. Please try again.', 'error');
-            });
-        }
-
-        function generateShareLink(event) {
-            const voteTitle = document.getElementById('voteTitle').value.trim();
-            const totalAttendance = document.getElementById('totalAttendance').value;
-            const quorumRequired = document.getElementById('quorumRequired').value;
-            const votesReceived = document.getElementById('votesReceived').value;
-            
-            const params = new URLSearchParams();
-            if (voteTitle) params.set('title', encodeURIComponent(voteTitle));
-            if (totalAttendance) params.set('attendance', totalAttendance);
-            if (quorumRequired) params.set('quorum', quorumRequired);
-            if (votesReceived) params.set('votes', votesReceived);
-            
-            const shareUrl = window.location.origin + window.location.pathname + '?' + params.toString();
-            
-            // Get the button element
-            const button = event ? event.target : document.querySelector('button[onclick*="generateShareLink"]');
-            
-            // Copy directly to clipboard
-            navigator.clipboard.writeText(shareUrl).then(function() {
-                // Show temporary success message
-                const originalText = button.textContent;
-                button.textContent = 'Copied!';
-                button.style.backgroundColor = '#28a745';
-                
-                setTimeout(function() {
-                    button.textContent = originalText;
-                    button.style.backgroundColor = '#17a2b8';
-                }, 1500);
-            }).catch(function(error) {
-                // Fallback: show the URL in a prompt for manual copying
-                console.error('Clipboard copy failed:', error);
-                prompt('Copy this link to share your results:', shareUrl);
-            });
-        }
-
-        function loadFromUrlParams() {
-            const urlParams = new URLSearchParams(window.location.search);
-            
-            const title = urlParams.get('title');
-            const attendance = urlParams.get('attendance');
-            const quorum = urlParams.get('quorum');
-            const votes = urlParams.get('votes');
-            
-            if (title) {
-                document.getElementById('voteTitle').value = decodeURIComponent(title);
-            }
-            if (attendance) {
-                document.getElementById('totalAttendance').value = attendance;
-            }
-            if (quorum) {
-                document.getElementById('quorumRequired').value = quorum;
-            }
-            if (votes) {
-                document.getElementById('votesReceived').value = votes;
-            }
-            
-            // If we have any URL parameters, automatically update the visualization
-            if (title || attendance || quorum || votes) {
-                updateVisualization();
-            }
-        }
-
-        // Load URL parameters on page load
-        window.onload = function() {
-            loadFromUrlParams();
-        };
-    </script>
+    <script src="tally.js"></script>
+    <script src="app.js"></script>
 </body>
 </html>
