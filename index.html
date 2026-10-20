@@ -40,7 +40,7 @@
             font-weight: bold;
             color: #555;
         }
-        input[type="text"], input[type="number"] {
+        input[type="text"], input[type="number"], input[type="date"] {
             padding: 10px;
             border: 1px solid #ddd;
             border-radius: 5px;
@@ -271,7 +271,7 @@
             font-size: 24px;
             font-weight: bold;
             margin-bottom: 14px;
-            overflow-wrap: anywhere;
+            overflow-wrap: break-word;
         }
         .g-status {
             display: inline-block;
@@ -348,8 +348,14 @@
         .tag-row { font-size: 12px; color: #666; margin-top: 4px; }
 
         /* Session mode */
+        .input-group.wide { grid-column: 1 / -1; }
         .motion-row {
             margin: 0 0 15px 0;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        }
+        /* The rule select needs two tracks to show its full option text; a phone has only one track. */
+        @media (min-width: 769px) {
+            .motion-row .rule-field { grid-column: span 2; }
         }
         .motion-row .remove-btn {
             align-self: end;
@@ -384,7 +390,11 @@
             text-align: center;
         }
         .summary-table th { background: #f1f3f5; }
-        .summary-table td:first-child, .summary-table th:first-child { text-align: left; overflow-wrap: anywhere; }
+        /* A fixed share with max-width 0 stops one long unbroken title from widening the table past
+           the graphic, so break-word splits only that token; ordinary titles still wrap between words. */
+        .summary-table td:first-child, .summary-table th:first-child {
+            text-align: left; overflow-wrap: break-word; width: 40%; max-width: 0;
+        }
         .summary-table .res { font-weight: bold; }
         .summary-table .res.passed, .summary-table .res.met { color: #1e7e34; }
         .summary-table .res.failed, .summary-table .res.notmet { color: #b02a37; }
@@ -448,7 +458,7 @@
                 margin-bottom: 15px;
             }
             
-            input[type="text"], input[type="number"] {
+            input[type="text"], input[type="number"], input[type="date"] {
                 padding: 12px;
                 font-size: 16px; /* Prevents zoom on iOS */
             }
@@ -801,7 +811,7 @@
 
         <section id="panel-session" hidden>
             <div class="input-section">
-                <div class="input-group">
+                <div class="input-group wide">
                     <label for="sessionTitle">Meeting Title:</label>
                     <input type="text" id="sessionTitle" placeholder="Enter meeting name">
                 </div>

@@ -253,3 +253,21 @@ test('summary text cells neutralize leading quotes, whitespace and line separato
     assert.equal(lines[4].split('\t')[0], 'One Two Three Four Five ');
     assert.doesNotMatch(text, /[\u0000-\u0008\u000b-\u001f\u007f\u0085\u2028\u2029]/);
 });
+
+test('motion alt text states the passage rule grammatically', () => {
+    const two = Tally.motionOutcome({ yes: 20, no: 10, present: 0, rule: 'two-thirds' });
+    assert.match(Tally.motionAltText('X', two), /Passage requires two-thirds of the Yes and No votes\./);
+    const maj = Tally.motionOutcome({ yes: 20, no: 10, present: 0, rule: 'majority' });
+    assert.match(Tally.motionAltText('X', maj), /Passage requires a majority of the Yes and No votes\./);
+});
+
+test('alt text flattens tabs and line breaks in titles to one space', () => {
+    const o = Tally.motionOutcome({ yes: 2, no: 1, present: 0, rule: 'majority' });
+    assert.match(Tally.motionAltText('Budget\tAmendment', o), /"Budget Amendment"/);
+    assert.match(Tally.quorumAltText('Roll\r\nCall', Tally.quorumCall({ members: 108, signedIn: 60 })), /"Roll Call"/);
+    const t = Tally.sessionAltText({ v: 1, title: 'Oct\nMeeting', date: '',
+        motions: [{ title: 'Budget\t\tAmendment', yes: 2, no: 1, present: 0, rule: 'majority' }] });
+    assert.match(t, /"Oct Meeting"/);
+    assert.match(t, /"Budget Amendment"/);
+    assert.doesNotMatch(t, /[\t\n\r]/);
+});

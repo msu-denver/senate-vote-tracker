@@ -612,10 +612,10 @@ function loadThreshold(membersId, thresholdId, saved) {
 
 let motionRowSeq = 0;
 
-function motionField(labelText, input) {
+function motionField(labelText, input, groupClass) {
     const id = 'sm' + (++motionRowSeq);
     input.id = id;
-    const group = h('div', 'input-group');
+    const group = h('div', 'input-group' + (groupClass ? ' ' + groupClass : ''));
     const label = h('label', '', labelText);
     label.htmlFor = id;
     group.append(label, input);
@@ -664,8 +664,8 @@ function addMotionRow(m) {
     });
 
     row.append(
-        motionField('Motion Title:', title), motionField('Yes:', yes), motionField('No:', no),
-        motionField('Present:', present), motionField('Passes with:', rule),
+        motionField('Motion Title:', title, 'wide'), motionField('Yes:', yes), motionField('No:', no),
+        motionField('Present:', present), motionField('Passes with:', rule, 'rule-field'),
         motionField('Eligible Voters (optional):', eligible), remove
     );
     row.fields = { title: title, yes: yes, no: no, present: present, rule: rule, eligible: eligible };

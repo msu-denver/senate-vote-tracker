@@ -91,12 +91,19 @@ const Tally = (function () {
             ', ' + (q.met ? 'MET' : 'NOT MET') + '.';
     }
 
+    // Line separators and other control characters, which split rows in pasted text.
+    const CONTROL_RUN = /[\u0000-\u001f\u007f\u0085\u2028\u2029]+/g;
+
+    function flatText(value) {
+        return String(value).replace(CONTROL_RUN, ' ');
+    }
+
     function motionAltText(title, o, quorum) {
-        let text = 'Motion outcome graphic for "' + title + '". Status: ' + o.status + '. ' +
+        let text = 'Motion outcome graphic for "' + flatText(title) + '". Status: ' + o.status + '. ' +
             'Yes ' + o.yes + ' (' + fmtPct(o.yesPct) + '% of Yes and No votes). ' +
             'No ' + o.no + ' (' + fmtPct(o.noPct) + '% of Yes and No votes). ' +
             'Present ' + o.present + ', not counted in the decision. ' +
-            'Passage requires a ' + ruleLabel(o.rule) + ' of Yes and No votes. ';
+            'Passage requires ' + (o.rule === 'two-thirds' ? 'two-thirds' : 'a majority') + ' of the Yes and No votes. ';
         if (o.participationPct !== null) {
             text += 'Ballots cast: ' + o.ballotsCast + ' of ' + o.eligible + ' eligible voters (' + fmtPct(o.participationPct) + '%). ';
         }
@@ -105,7 +112,7 @@ const Tally = (function () {
     }
 
     function quorumAltText(title, call) {
-        return 'Quorum call graphic for "' + title + '". Status: ' + (call.met ? 'MET' : 'NOT MET') + '. ' +
+        return 'Quorum call graphic for "' + flatText(title) + '". Status: ' + (call.met ? 'MET' : 'NOT MET') + '. ' +
             call.signedIn + ' of ' + call.members + ' voting members signed in. ' +
             'Quorum threshold: ' + call.threshold +
             (call.threshold === quorumThreshold(call.members) ? '' :
@@ -150,7 +157,7 @@ const Tally = (function () {
     // Spreadsheets split rows on any line separator, read a leading double quote as a quoted
     // field that can swallow later tabs and rows, and skip leading spaces before a formula sign.
     function textCell(value) {
-        const flat = String(value).replace(/[\u0000-\u001f\u007f\u0085\u2028\u2029]+/g, ' ');
+        const flat = flatText(value);
         return /^\s*[=+\-@"]/.test(flat) ? "'" + flat : flat;
     }
 
@@ -184,7 +191,7 @@ const Tally = (function () {
     function sessionAltText(session) {
         const q = sessionQuorum(session);
         const outcomes = sessionOutcomes(session);
-        let text = 'Meeting summary graphic for "' + session.title + '"' +
+        let text = 'Meeting summary graphic for "' + flatText(session.title) + '"' +
             (session.date ? ', ' + fmtDate(session.date) : '') + '. ';
         if (q) {
             text += 'Quorum call: ' + q.signedIn + ' of ' + q.members + ' voting members signed in, quorum threshold ' +
@@ -192,7 +199,7 @@ const Tally = (function () {
         }
         session.motions.forEach(function (m, i) {
             const o = outcomes[i];
-            text += 'Motion ' + (i + 1) + ', "' + m.title + '": ' + o.status + '. Yes ' + o.yes + ' (' + fmtPct(o.yesPct) +
+            text += 'Motion ' + (i + 1) + ', "' + flatText(m.title) + '": ' + o.status + '. Yes ' + o.yes + ' (' + fmtPct(o.yesPct) +
                 '%), No ' + o.no + ' (' + fmtPct(o.noPct) + '%), Present ' + o.present + ', ' + ruleLabel(o.rule) + ' rule. ';
         });
         return text.trim();
