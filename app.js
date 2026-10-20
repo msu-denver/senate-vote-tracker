@@ -162,24 +162,12 @@ function showToast(message, type = 'success') {
 }
 
 function generateAltText() {
-    const voteTitle = document.getElementById('voteTitle').value.trim() || 'Untitled Vote';
-    const totalAttendance = parseInt(document.getElementById('totalAttendance').value) || 0;
-    const quorumRequired = parseInt(document.getElementById('quorumRequired').value) || 0;
-    const votesReceived = parseInt(document.getElementById('votesReceived').value) || 0;
-    const participationRate = totalAttendance > 0 ? ((votesReceived / totalAttendance) * 100).toFixed(1) : '0';
-    const quorumMet = votesReceived >= quorumRequired;
-
-    // Generate comprehensive alt text
-    const altText = `Faculty Senate Vote Tracker visualization for "${voteTitle}". ` +
-        `Total attendance: ${totalAttendance} members. ` +
-        `Quorum requirement: ${quorumRequired} votes. ` +
-        `Votes received: ${votesReceived} (${participationRate}% participation rate). ` +
-        `Quorum status: ${quorumMet ? 'Met' : 'Not met'} - ${quorumMet ? 'voting threshold achieved' : `${quorumRequired - votesReceived} more votes needed`}. ` +
-        `The dashboard displays three metric cards: Attendance (blue), Quorum (yellow), and Votes (${quorumMet ? 'green' : 'red'}). ` +
-        `A progress bar shows ${participationRate}% completion with a yellow quorum marker at ${quorumRequired} votes. ` +
-        `A donut chart visualizes ${votesReceived} voted versus ${totalAttendance - votesReceived} not voted.`;
-
-    return altText;
+    return Tally.classicAltText({
+        title: document.getElementById('voteTitle').value.trim(),
+        attendance: parseInt(document.getElementById('totalAttendance').value),
+        quorum: parseInt(document.getElementById('quorumRequired').value),
+        votes: parseInt(document.getElementById('votesReceived').value)
+    });
 }
 
 function copyAltText(event) {
@@ -246,7 +234,7 @@ function generateShareLink(event) {
     const votesReceived = document.getElementById('votesReceived').value;
     
     const params = new URLSearchParams();
-    if (voteTitle) params.set('title', encodeURIComponent(voteTitle));
+    if (voteTitle) params.set('title', voteTitle);
     if (totalAttendance) params.set('attendance', totalAttendance);
     if (quorumRequired) params.set('quorum', quorumRequired);
     if (votesReceived) params.set('votes', votesReceived);
@@ -283,7 +271,7 @@ function loadFromUrlParams() {
     const votes = urlParams.get('votes');
     
     if (title) {
-        document.getElementById('voteTitle').value = decodeURIComponent(title);
+        document.getElementById('voteTitle').value = Tally.readTitle(title);
     }
     if (attendance) {
         document.getElementById('totalAttendance').value = attendance;

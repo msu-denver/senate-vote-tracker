@@ -128,3 +128,14 @@ test('session summary shows NO QUORUM for every motion when quorum is not met', 
     assert.match(lines[1], /NOT MET/);
     assert.match(lines[2], /NO QUORUM/);
 });
+
+test('classic alt text is unchanged for existing inputs', () => {
+    assert.equal(
+        Tally.classicAltText({ title: 'T', attendance: 96, quorum: 55, votes: 85 }),
+        'Faculty Senate Vote Tracker visualization for "T". Total attendance: 96 members. Quorum requirement: 55 votes. Votes received: 85 (88.5% participation rate). Quorum status: Met - voting threshold achieved. The dashboard displays three metric cards: Attendance (blue), Quorum (yellow), and Votes (green). A progress bar shows 88.5% completion with a yellow quorum marker at 55 votes. A donut chart visualizes 85 voted versus 11 not voted.'
+    );
+    assert.equal(
+        Tally.classicAltText({ title: 'Low', attendance: 96, quorum: 55, votes: 30 }),
+        'Faculty Senate Vote Tracker visualization for "Low". Total attendance: 96 members. Quorum requirement: 55 votes. Votes received: 30 (31.3% participation rate). Quorum status: Not met - 25 more votes needed. The dashboard displays three metric cards: Attendance (blue), Quorum (yellow), and Votes (red). A progress bar shows 31.3% completion with a yellow quorum marker at 55 votes. A donut chart visualizes 30 voted versus 66 not voted.'
+    );
+});
