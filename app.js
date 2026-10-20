@@ -243,6 +243,10 @@ function loadFromUrlParams() {
         loadQuorumParams(urlParams);
         return;
     }
+    if (urlParams.has('s')) {
+        loadSessionParam(urlParams.get('s'));
+        return;
+    }
 
     const title = urlParams.get('title');
     const attendance = urlParams.get('attendance');
@@ -588,16 +592,259 @@ function loadQuorumParams(params) {
 }
 
 // Prefill the threshold from the roster size until the user edits it.
-function syncThreshold() {
-    const input = document.getElementById('quorumThreshold');
-    const members = readNum('quorumMembers');
+function syncThreshold(membersId, thresholdId) {
+    const input = document.getElementById(thresholdId);
+    const members = readNum(membersId);
     if (input.dataset.touched === '1' || members === null || !(members > 0)) return;
     input.value = Tally.quorumThreshold(members);
 }
 
+// ---- Session mode ----
+
+let motionRowSeq = 0;
+
+function motionField(labelText, input) {
+    const id = 'sm' + (++motionRowSeq);
+    input.id = id;
+    const group = h('div', 'input-group');
+    const label = h('label', '', labelText);
+    label.htmlFor = id;
+    group.append(label, input);
+    return group;
+}
+
+function numberInput(placeholder) {
+    const input = h('input');
+    input.type = 'number';
+    input.min = '0';
+    input.step = '1';
+    input.placeholder = placeholder;
+    return input;
+}
+
+function addMotionRow(m) {
+    m = m || {};
+    const row = h('fieldset', 'optional-group motion-row');
+    row.append(h('legend'));
+
+    const title = h('input');
+    title.type = 'text';
+    title.placeholder = 'Enter motion name';
+    title.value = m.title || '';
+    const yes = numberInput('Yes votes');
+    const no = numberInput('No votes');
+    const present = numberInput('Present ballots');
+    const rule = h('select');
+    [['majority', 'Majority (Yes more than No)'], ['two-thirds', 'Two-thirds of Yes and No']].forEach(function(o) {
+        const opt = h('option', '', o[1]);
+        opt.value = o[0];
+        rule.append(opt);
+    });
+    rule.value = m.rule || 'majority';
+    const eligible = numberInput('Defaults to signed in');
+    [[yes, m.yes], [no, m.no], [present, m.present], [eligible, m.eligible]].forEach(function(p) {
+        if (p[1] !== undefined && p[1] !== null) p[0].value = p[1];
+    });
+
+    const remove = h('button', 'remove-btn', 'Remove');
+    remove.type = 'button';
+    remove.addEventListener('click', function() {
+        row.remove();
+        renumberRows();
+        clearSessionResults();
+    });
+
+    row.append(
+        motionField('Motion Title:', title), motionField('Yes:', yes), motionField('No:', no),
+        motionField('Present:', present), motionField('Passes with:', rule),
+        motionField('Eligible Voters (optional):', eligible), remove
+    );
+    row.fields = { title: title, yes: yes, no: no, present: present, rule: rule, eligible: eligible };
+    document.getElementById('sessionMotions').append(row);
+    renumberRows();
+}
+
+function renumberRows() {
+    document.querySelectorAll('#sessionMotions .motion-row').forEach(function(row, i) {
+        row.querySelector('legend').textContent = 'Motion ' + (i + 1);
+        row.querySelector('.remove-btn').setAttribute('aria-label', 'Remove motion ' + (i + 1));
+    });
+}
+
+function clearSessionResults() {
+    document.getElementById('sessionResults').textContent = '';
+}
+
+function numOrNull(input) {
+    const v = input.value.trim();
+    return v === '' ? null : Number(v);
+}
+
+function readSession() {
+    const errors = [];
+    const warnings = [];
+    const session = { v: 1, title: document.getElementById('sessionTitle').value.trim(), date: document.getElementById('sessionDate').value, motions: [] };
+    const members = readNum('sessionMembers');
+    const signedIn = readNum('sessionSignedIn');
+    const threshold = readNum('sessionThreshold');
+    if (!session.title) errors.push('Please enter a meeting title.');
+    if ((members === null) !== (signedIn === null)) {
+        errors.push('Enter both Voting Members and Signed In for the quorum call, or leave both blank.');
+    }
+    if (members !== null && signedIn !== null) {
+        session.members = members;
+        session.signedIn = signedIn;
+        if (threshold !== null) {
+            if (!Number.isInteger(threshold) || threshold < 1) errors.push('Quorum Threshold must be a whole number, one or more.');
+            else session.threshold = threshold;
+        }
+        const qCheck = Tally.checkCounts({ yes: 0, no: 0, present: 0, members, signedIn });
+        errors.push.apply(errors, qCheck.errors);
+        warnings.push.apply(warnings, qCheck.warnings);
+    }
+    document.querySelectorAll('#sessionMotions .motion-row').forEach(function(row, i) {
+        const f = row.fields;
+        const label = 'Motion ' + (i + 1) + ': ';
+        const motion = {
+            title: f.title.value.trim(), yes: numOrNull(f.yes), no: numOrNull(f.no), present: numOrNull(f.present),
+            rule: f.rule.value, eligible: numOrNull(f.eligible)
+        };
+        if (!motion.title) return errors.push(label + 'please enter a motion title.');
+        if (motion.yes === null || motion.no === null || motion.present === null) {
+            return errors.push(label + 'please enter Yes, No and Present counts (0 if none).');
+        }
+        const effectiveEligible = motion.eligible !== null ? motion.eligible : signedIn;
+        const check = Tally.checkCounts({ yes: motion.yes, no: motion.no, present: motion.present, eligible: effectiveEligible === undefined ? null : effectiveEligible });
+        check.errors.forEach(function(e) { errors.push(label + e); });
+        check.warnings.forEach(function(w) { warnings.push(label + w); });
+        if (motion.eligible === null) delete motion.eligible;
+        session.motions.push(motion);
+    });
+    if (document.querySelectorAll('#sessionMotions .motion-row').length === 0) errors.push('Add at least one motion.');
+    return { session: session, errors: errors, warnings: warnings };
+}
+
+function renderSummary(session, quorum, outcomes) {
+    const g = h('div', 'graphic');
+    g.append(h('div', 'g-title', session.title));
+    if (session.date) g.append(h('div', 'g-date', Tally.fmtDate(session.date)));
+    const table = h('table', 'summary-table');
+    const head = h('tr');
+    ['Motion', 'Yes', 'No', 'Present', 'Result'].forEach(function(t) {
+        const th = h('th', '', t);
+        th.scope = 'col';
+        head.append(th);
+    });
+    table.append(head);
+    function resultCell(status) {
+        return h('td', 'res ' + statusClass(status), status);
+    }
+    if (quorum) {
+        const tr = h('tr');
+        const first = h('td', '', 'Quorum call');
+        const detail = h('td', '', quorum.signedIn + ' signed in of ' + quorum.members + ' (threshold ' + quorum.threshold + ')');
+        detail.colSpan = 3;
+        tr.append(first, detail, resultCell(quorum.met ? 'MET' : 'NOT MET'));
+        table.append(tr);
+    }
+    session.motions.forEach(function(m, i) {
+        const o = outcomes[i];
+        const tr = h('tr');
+        tr.append(
+            h('td', '', m.title),
+            h('td', '', o.yes + ' (' + Tally.fmtPct(o.yesPct) + '%)'),
+            h('td', '', o.no + ' (' + Tally.fmtPct(o.noPct) + '%)'),
+            h('td', '', String(o.present)),
+            resultCell(o.status)
+        );
+        table.append(tr);
+    });
+    g.append(table);
+    g.append(h('div', 'tag-row', 'Percentages are of Yes and No votes. Present is not counted in the decision.'));
+    return g;
+}
+
+function sessionSection(heading) {
+    const sec = h('section', 'session-item');
+    sec.append(h('h2', '', heading));
+    document.getElementById('sessionResults').append(sec);
+    return sec;
+}
+
+function renderSessionResults(session) {
+    clearSessionResults();
+    const quorum = Tally.sessionQuorum(session);
+    const outcomes = Tally.sessionOutcomes(session);
+    const base = fileSafe(session.title);
+    const params = new URLSearchParams();
+    params.set('s', Tally.encodeSession(session));
+    const link = pageUrl(params);
+
+    const sumSec = sessionSection('Meeting summary');
+    const summary = renderSummary(session, quorum, outcomes);
+    const textBtn = h('button', '', 'Copy as Text');
+    textBtn.type = 'button';
+    textBtn.addEventListener('click', function() {
+        copyText(textBtn, Tally.sessionSummaryText(session), 'Text Copied!', 'Copy this table for the minutes:');
+    });
+    sumSec.append(makeActions({
+        target: summary, fileName: base + '-summary.png', altText: Tally.sessionAltText(session), link: link, extra: [textBtn]
+    }), summary);
+
+    if (quorum) {
+        const qSec = sessionSection('Quorum call');
+        const g = renderQuorum(h('div'), session.title, quorum);
+        const holder = g.parentNode;
+        qSec.append(makeActions({
+            target: g, fileName: base + '-quorum.png', altText: Tally.quorumAltText(session.title, quorum)
+        }), holder);
+    }
+
+    session.motions.forEach(function(m, i) {
+        const sec = sessionSection('Motion ' + (i + 1));
+        const holder = h('div');
+        const g = renderMotion(holder, m.title, outcomes[i], quorum);
+        sec.append(makeActions({
+            target: g, fileName: base + '-motion-' + (i + 1) + '-' + fileSafe(m.title) + '.png',
+            altText: Tally.motionAltText(m.title, outcomes[i], quorum)
+        }), holder);
+    });
+}
+
+function updateSession() {
+    const r = readSession();
+    clearSessionResults();
+    showMessages('session', r.errors, r.errors.length ? [] : r.warnings);
+    if (r.errors.length) return;
+    renderSessionResults(r.session);
+}
+
+function fillSession(session) {
+    setValue('sessionTitle', session.title);
+    setValue('sessionDate', session.date);
+    setValue('sessionMembers', session.members);
+    setValue('sessionSignedIn', session.signedIn);
+    setValue('sessionThreshold', session.threshold);
+    if (session.threshold !== undefined) document.getElementById('sessionThreshold').dataset.touched = '1';
+    document.getElementById('sessionMotions').textContent = '';
+    if (session.motions.length === 0) addMotionRow();
+    session.motions.forEach(addMotionRow);
+}
+
+function loadSessionParam(value) {
+    setMode('session');
+    const r = Tally.decodeSession(value);
+    fillSession(r.session);
+    if (r.error) {
+        showMessages('session', [r.error], []);
+        return;
+    }
+    updateSession();
+}
+
 // ---- Mode switching ----
 
-const MODES = ['classic', 'motion', 'quorum'];
+const MODES = ['classic', 'motion', 'quorum', 'session'];
 
 function setMode(mode) {
     MODES.forEach(function(m) {
@@ -612,9 +859,17 @@ window.onload = function() {
     });
     document.getElementById('motionUpdate').addEventListener('click', updateMotion);
     document.getElementById('quorumUpdate').addEventListener('click', updateQuorum);
-    document.getElementById('quorumMembers').addEventListener('input', syncThreshold);
-    document.getElementById('quorumThreshold').addEventListener('input', function(e) {
-        e.target.dataset.touched = e.target.value === '' ? '0' : '1';
+    [['quorumMembers', 'quorumThreshold'], ['sessionMembers', 'sessionThreshold']].forEach(function(ids) {
+        document.getElementById(ids[0]).addEventListener('input', function() { syncThreshold(ids[0], ids[1]); });
+        document.getElementById(ids[1]).addEventListener('input', function(e) {
+            e.target.dataset.touched = e.target.value === '' ? '0' : '1';
+        });
     });
+    document.getElementById('sessionAdd').addEventListener('click', function() {
+        addMotionRow();
+        clearSessionResults();
+    });
+    document.getElementById('sessionUpdate').addEventListener('click', updateSession);
+    addMotionRow();
     loadFromUrlParams();
 };

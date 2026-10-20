@@ -139,3 +139,37 @@ test('classic alt text is unchanged for existing inputs', () => {
         'Faculty Senate Vote Tracker visualization for "Low". Total attendance: 96 members. Quorum requirement: 55 votes. Votes received: 30 (31.3% participation rate). Quorum status: Not met - 25 more votes needed. The dashboard displays three metric cards: Attendance (blue), Quorum (yellow), and Votes (red). A progress bar shows 31.3% completion with a yellow quorum marker at 55 votes. A donut chart visualizes 30 voted versus 66 not voted.'
     );
 });
+
+test('session summary omits the quorum row when no quorum call is given', () => {
+    const session = { v: 1, title: 'Oct', date: '', motions: [{ title: 'A', yes: 3, no: 1, present: 0, rule: 'majority' }] };
+    assert.equal(Tally.sessionSummaryText(session).split('\n').length, 2);
+});
+
+test('session alt text names every status word and has no NaN or undefined', () => {
+    const session = {
+        v: 1, title: 'Oct', date: '2026-10-28', members: 108, signedIn: 96,
+        motions: [
+            { title: 'A', yes: 60, no: 20, present: 5, rule: 'majority' },
+            { title: 'B', yes: 0, no: 0, present: 4, rule: 'two-thirds' }
+        ]
+    };
+    const t = Tally.sessionAltText(session);
+    assert.match(t, /October 28, 2026/);
+    assert.match(t, /MET/);
+    assert.match(t, /PASSED/);
+    assert.match(t, /FAILED/);
+    assert.doesNotMatch(t, /NaN|undefined|null/);
+});
+
+test('fmtDate is time-zone independent and tolerates bad input', () => {
+    assert.equal(Tally.fmtDate('2026-10-28'), 'October 28, 2026');
+    assert.equal(Tally.fmtDate(''), '');
+    assert.equal(Tally.fmtDate('soon'), 'soon');
+});
+
+test('session links with wrong field types are rejected', () => {
+    const bad = { v: 1, title: 'x', members: 'many', motions: [] };
+    assert.ok(Tally.decodeSession(Tally.encodeSession(bad)).error);
+    const bad2 = { v: 1, title: 'x', motions: [{ title: 'm', yes: 1, no: 1, present: 0, rule: 'majority', eligible: -3 }] };
+    assert.ok(Tally.decodeSession(Tally.encodeSession(bad2)).error);
+});

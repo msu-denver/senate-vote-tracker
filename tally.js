@@ -131,8 +131,10 @@ const Tally = (function () {
         const q = sessionQuorum(session);
         const head = ['Motion', 'Yes', 'No', 'Present', 'Yes %', 'No %', 'Rule', 'Participation %', 'Result'];
         const lines = [head.join('\t')];
-        lines.push(['Quorum call', q ? String(q.signedIn) : '', q ? 'of ' + q.members : '', '', '', '',
-            q ? 'threshold ' + q.threshold : '', '', q ? (q.met ? 'MET' : 'NOT MET') : ''].join('\t'));
+        if (q) {
+            lines.push(['Quorum call', String(q.signedIn), 'of ' + q.members, '', '', '',
+                'threshold ' + q.threshold, '', q.met ? 'MET' : 'NOT MET'].join('\t'));
+        }
         const outcomes = sessionOutcomes(session);
         session.motions.forEach(function (m, i) {
             const o = outcomes[i];
@@ -140,6 +142,33 @@ const Tally = (function () {
                 o.participationPct === null ? '' : fmtPct(o.participationPct), o.status].join('\t'));
         });
         return lines.join('\n');
+    }
+
+    const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September',
+        'October', 'November', 'December'];
+
+    // Formats YYYY-MM-DD without a Date object so the result never shifts with the time zone.
+    function fmtDate(iso) {
+        const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || '');
+        if (!m || Number(m[2]) < 1 || Number(m[2]) > 12) return iso || '';
+        return MONTHS[Number(m[2]) - 1] + ' ' + Number(m[3]) + ', ' + m[1];
+    }
+
+    function sessionAltText(session) {
+        const q = sessionQuorum(session);
+        const outcomes = sessionOutcomes(session);
+        let text = 'Meeting summary graphic for "' + session.title + '"' +
+            (session.date ? ', ' + fmtDate(session.date) : '') + '. ';
+        if (q) {
+            text += 'Quorum call: ' + q.signedIn + ' of ' + q.members + ' voting members signed in, quorum threshold ' +
+                q.threshold + ', ' + (q.met ? 'MET' : 'NOT MET') + '. ';
+        }
+        session.motions.forEach(function (m, i) {
+            const o = outcomes[i];
+            text += 'Motion ' + (i + 1) + ', "' + m.title + '": ' + o.status + '. Yes ' + o.yes + ' (' + fmtPct(o.yesPct) +
+                '%), No ' + o.no + ' (' + fmtPct(o.noPct) + '%), Present ' + o.present + ', ' + ruleLabel(o.rule) + ' rule. ';
+        });
+        return text.trim();
     }
 
     function toBase64Url(str) {
@@ -164,8 +193,12 @@ const Tally = (function () {
         return { v: 1, title: '', date: '', motions: [] };
     }
 
+    function optionalCount(n) {
+        return n === undefined || isCount(n);
+    }
+
     function validMotion(m) {
-        return m && typeof m === 'object' && typeof m.title === 'string' &&
+        return m && typeof m === 'object' && typeof m.title === 'string' && optionalCount(m.eligible) &&
             isCount(m.yes) && isCount(m.no) && isCount(m.present) &&
             (m.rule === 'majority' || m.rule === 'two-thirds');
     }
@@ -174,7 +207,9 @@ const Tally = (function () {
         const fail = 'This session link is damaged or incomplete, so it could not be opened.';
         try {
             const data = JSON.parse(fromBase64Url(String(s)));
-            if (!data || data.v !== 1 || !Array.isArray(data.motions) || !data.motions.every(validMotion)) {
+            if (!data || data.v !== 1 || typeof data.title !== 'string' || !Array.isArray(data.motions) ||
+                !data.motions.every(validMotion) || !optionalCount(data.members) || !optionalCount(data.signedIn) ||
+                !optionalCount(data.threshold) || (data.date !== undefined && typeof data.date !== 'string')) {
                 return { session: emptySession(), error: fail };
             }
             return { session: data, error: null };
@@ -193,7 +228,7 @@ const Tally = (function () {
 
     return {
         quorumThreshold, quorumCall, motionOutcome, checkCounts, fmtPct, motionAltText, quorumAltText,
-        classicAltText, sessionQuorum, sessionOutcomes, sessionSummaryText, encodeSession, decodeSession,
+        classicAltText, fmtDate, sessionAltText, sessionQuorum, sessionOutcomes, sessionSummaryText, encodeSession, decodeSession,
         readTitle, isGiven
     };
 })();

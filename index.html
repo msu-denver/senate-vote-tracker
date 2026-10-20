@@ -347,6 +347,50 @@
         }
         .tag-row { font-size: 12px; color: #666; margin-top: 4px; }
 
+        /* Session mode */
+        .motion-row {
+            margin: 0 0 15px 0;
+        }
+        .motion-row .remove-btn {
+            align-self: end;
+            margin: 0;
+            background-color: #6c757d;
+            padding: 10px 16px;
+        }
+        .motion-row .remove-btn:hover { background-color: #5a6268; }
+        .session-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        button.secondary { background-color: #0056b3; }
+        button.secondary:hover { background-color: #004494; }
+        .session-item { margin-top: 30px; }
+        .session-item h2 {
+            font-size: 18px;
+            color: #333;
+            text-align: center;
+            margin: 0;
+        }
+        .summary-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 12px;
+            font-size: 15px;
+        }
+        .summary-table th, .summary-table td {
+            border: 1px solid #ccc;
+            padding: 6px 8px;
+            text-align: center;
+        }
+        .summary-table th { background: #f1f3f5; }
+        .summary-table td:first-child, .summary-table th:first-child { text-align: left; overflow-wrap: anywhere; }
+        .summary-table .res { font-weight: bold; }
+        .summary-table .res.passed, .summary-table .res.met { color: #1e7e34; }
+        .summary-table .res.failed, .summary-table .res.notmet { color: #b02a37; }
+        .summary-table .res.noquorum { color: #664d03; }
+        .g-date { font-size: 16px; color: #555; margin-bottom: 8px; }
+
         /* Toast notification styles */
         .toast {
             position: fixed;
@@ -574,6 +618,9 @@
             .counts { flex-direction: column; font-size: 16px; }
             .mode-switch label { font-size: 14px; padding: 9px 12px; }
             .actions button { width: 100%; }
+            .summary-table { font-size: 13px; }
+            .summary-table th, .summary-table td { padding: 5px 4px; }
+            .session-buttons button { width: 100%; }
         }
     </style>
 </head>
@@ -589,6 +636,8 @@
             <label for="mode-motion">Motion outcome</label>
             <input type="radio" name="mode" id="mode-quorum" value="quorum">
             <label for="mode-quorum">Quorum call</label>
+            <input type="radio" name="mode" id="mode-session" value="session">
+            <label for="mode-session">Meeting session</label>
         </fieldset>
 
         <section id="panel-classic">
@@ -748,6 +797,43 @@
             <div id="quorumWarnings" class="warnings" role="status" hidden></div>
             <div id="quorumActions"></div>
             <div id="quorumGraphic"></div>
+        </section>
+
+        <section id="panel-session" hidden>
+            <div class="input-section">
+                <div class="input-group">
+                    <label for="sessionTitle">Meeting Title:</label>
+                    <input type="text" id="sessionTitle" placeholder="Enter meeting name">
+                </div>
+                <div class="input-group">
+                    <label for="sessionDate">Meeting Date (optional):</label>
+                    <input type="date" id="sessionDate">
+                </div>
+                <fieldset class="optional-group">
+                    <legend>Quorum call (optional)</legend>
+                    <div class="input-group">
+                        <label for="sessionMembers">Voting Members:</label>
+                        <input type="number" id="sessionMembers" min="1" step="1" placeholder="Roster size">
+                    </div>
+                    <div class="input-group">
+                        <label for="sessionSignedIn">Signed In:</label>
+                        <input type="number" id="sessionSignedIn" min="0" step="1" placeholder="Number signed in">
+                    </div>
+                    <div class="input-group">
+                        <label for="sessionThreshold">Quorum Threshold:</label>
+                        <input type="number" id="sessionThreshold" min="1" step="1" placeholder="Majority of members">
+                        <span class="hint">Filled in as a majority of voting members. Change it to override.</span>
+                    </div>
+                </fieldset>
+            </div>
+            <div id="sessionMotions"></div>
+            <div class="session-buttons">
+                <button type="button" class="secondary" id="sessionAdd">Add Motion</button>
+                <button type="button" class="primary" id="sessionUpdate">Update Session</button>
+            </div>
+            <div id="sessionError" class="error" role="alert"></div>
+            <div id="sessionWarnings" class="warnings" role="status" hidden></div>
+            <div id="sessionResults"></div>
         </section>
     </div>
 
