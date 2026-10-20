@@ -173,3 +173,20 @@ test('session links with wrong field types are rejected', () => {
     const bad2 = { v: 1, title: 'x', motions: [{ title: 'm', yes: 1, no: 1, present: 0, rule: 'majority', eligible: -3 }] };
     assert.ok(Tally.decodeSession(Tally.encodeSession(bad2)).error);
 });
+
+test('summary text cells cannot break columns or evaluate as formulas', () => {
+    const session = {
+        v: 1, title: 'Oct', date: '', motions: [
+            { title: '=HYPERLINK("x")', yes: 1, no: 0, present: 0, rule: 'majority' },
+            { title: 'A\tB\nC', yes: 1, no: 0, present: 0, rule: 'majority' },
+            { title: '@SUM(1)', yes: 1, no: 0, present: 0, rule: 'majority' }
+        ]
+    };
+    const lines = Tally.sessionSummaryText(session).split('\n');
+    assert.equal(lines.length, 4);
+    assert.ok(lines[1].split('\t')[0].startsWith("'="));
+    assert.equal(lines[2].split('\t')[0], 'A B C');
+    assert.ok(lines[3].split('\t')[0].startsWith("'@"));
+    const cols = lines[0].split('\t').length;
+    lines.forEach((l) => assert.equal(l.split('\t').length, cols));
+});

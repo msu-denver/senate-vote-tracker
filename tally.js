@@ -127,6 +127,12 @@ const Tally = (function () {
         });
     }
 
+    // Keeps user text inside one cell and stops spreadsheets from evaluating it as a formula.
+    function textCell(value) {
+        const flat = String(value).replace(/[\t\r\n]+/g, ' ');
+        return /^[=+\-@]/.test(flat) ? "'" + flat : flat;
+    }
+
     function sessionSummaryText(session) {
         const q = sessionQuorum(session);
         const head = ['Motion', 'Yes', 'No', 'Present', 'Yes %', 'No %', 'Rule', 'Participation %', 'Result'];
@@ -138,7 +144,7 @@ const Tally = (function () {
         const outcomes = sessionOutcomes(session);
         session.motions.forEach(function (m, i) {
             const o = outcomes[i];
-            lines.push([m.title, o.yes, o.no, o.present, fmtPct(o.yesPct), fmtPct(o.noPct), ruleLabel(o.rule),
+            lines.push([textCell(m.title), o.yes, o.no, o.present, fmtPct(o.yesPct), fmtPct(o.noPct), ruleLabel(o.rule),
                 o.participationPct === null ? '' : fmtPct(o.participationPct), o.status].join('\t'));
         });
         return lines.join('\n');
