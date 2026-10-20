@@ -190,3 +190,66 @@ test('summary text cells cannot break columns or evaluate as formulas', () => {
     const cols = lines[0].split('\t').length;
     lines.forEach((l) => assert.equal(l.split('\t').length, cols));
 });
+
+test('an auto-filled threshold is not saved and keeps tracking the roster after a round trip', () => {
+    assert.equal(Tally.thresholdOverride(108, 55), undefined);
+    assert.equal(Tally.thresholdOverride(108, null), undefined);
+    const session = { v: 1, title: 'Oct', date: '', members: 108, signedIn: 55,
+        motions: [{ title: 'A', yes: 40, no: 5, present: 2, rule: 'majority' }] };
+    const override = Tally.thresholdOverride(session.members, 55);
+    if (override !== undefined) session.threshold = override;
+    const reopened = Tally.decodeSession(Tally.encodeSession(session)).session;
+    assert.equal(reopened.threshold, undefined);
+    reopened.members = 110;
+    const q = Tally.sessionQuorum(reopened);
+    assert.equal(q.threshold, 56);
+    assert.equal(q.met, false);
+    assert.equal(Tally.sessionOutcomes(reopened)[0].status, 'NO QUORUM');
+    assert.equal(Tally.effectiveThreshold(110, undefined), 56);
+});
+
+test('an explicit threshold override survives a round trip', () => {
+    assert.equal(Tally.thresholdOverride(108, 60), 60);
+    const session = { v: 1, title: 'Oct', date: '', members: 108, signedIn: 58, threshold: Tally.thresholdOverride(108, 60),
+        motions: [] };
+    const reopened = Tally.decodeSession(Tally.encodeSession(session)).session;
+    assert.equal(reopened.threshold, 60);
+    reopened.members = 110;
+    assert.equal(Tally.sessionQuorum(reopened).threshold, 60);
+    assert.equal(Tally.effectiveThreshold(110, 60), 60);
+});
+
+test('quorum wording names an overridden threshold instead of claiming a majority', () => {
+    const plain = Tally.quorumCall({ members: 108, signedIn: 60 });
+    assert.equal(Tally.quorumBasis(plain), 'Quorum is a majority of voting members');
+    const set = Tally.quorumCall({ members: 108, signedIn: 60, threshold: 70 });
+    const basis = Tally.quorumBasis(set);
+    assert.doesNotMatch(basis, /Quorum is a majority/);
+    assert.match(basis, /70/);
+    assert.match(basis, /55/);
+    const alt = Tally.quorumAltText('Roll', set);
+    assert.doesNotMatch(alt, /Quorum is a majority/);
+    assert.match(alt, /70/);
+    assert.match(alt, /55/);
+});
+
+test('summary text cells neutralize leading quotes, whitespace and line separators', () => {
+    const session = {
+        v: 1, title: 'Oct', date: '', motions: [
+            { title: '"=1+1"', yes: 1, no: 0, present: 0, rule: 'majority' },
+            { title: '"Sense of the Senate', yes: 1, no: 0, present: 0, rule: 'majority' },
+            { title: '  =SUM(1)', yes: 1, no: 0, present: 0, rule: 'majority' },
+            { title: 'One\u2028Two\u2029Three\u0085Four\u000bFive\u007f', yes: 1, no: 0, present: 0, rule: 'majority' }
+        ]
+    };
+    const text = Tally.sessionSummaryText(session);
+    const lines = text.split('\n');
+    assert.equal(lines.length, 5);
+    const cols = lines[0].split('\t').length;
+    lines.forEach((l) => assert.equal(l.split('\t').length, cols));
+    assert.ok(lines[1].split('\t')[0].startsWith("'"));
+    assert.ok(lines[2].split('\t')[0].startsWith("'"));
+    assert.ok(lines[3].split('\t')[0].startsWith("'"));
+    assert.equal(lines[4].split('\t')[0], 'One Two Three Four Five ');
+    assert.doesNotMatch(text, /[\u0000-\u0008\u000b-\u001f\u007f\u0085\u2028\u2029]/);
+});

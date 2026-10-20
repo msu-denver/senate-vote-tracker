@@ -19,9 +19,26 @@ const Tally = (function () {
         return Math.floor(members / 2) + 1;
     }
 
+    // A saved threshold is an explicit override; without one the threshold follows the roster size.
+    function effectiveThreshold(members, override) {
+        return isGiven(override) ? override : quorumThreshold(members);
+    }
+
+    // The threshold a link should carry: only a value that differs from the computed majority,
+    // so a reopened link keeps recomputing when the roster size changes.
+    function thresholdOverride(members, entered) {
+        return isGiven(entered) && entered !== quorumThreshold(members) ? entered : undefined;
+    }
+
     function quorumCall({ members, signedIn, threshold }) {
-        const t = isGiven(threshold) ? threshold : quorumThreshold(members);
+        const t = effectiveThreshold(members, threshold);
         return { members, signedIn, threshold: t, met: signedIn >= t };
+    }
+
+    function quorumBasis(call) {
+        const majority = quorumThreshold(call.members);
+        if (call.threshold === majority) return 'Quorum is a majority of voting members';
+        return 'Quorum threshold set to ' + call.threshold + ' (a majority of voting members would be ' + majority + ')';
     }
 
     // Bylaws Art. II 1.2.11: only Yes and No count toward the decision.
@@ -90,7 +107,9 @@ const Tally = (function () {
     function quorumAltText(title, call) {
         return 'Quorum call graphic for "' + title + '". Status: ' + (call.met ? 'MET' : 'NOT MET') + '. ' +
             call.signedIn + ' of ' + call.members + ' voting members signed in. ' +
-            'Quorum threshold: ' + call.threshold + '.';
+            'Quorum threshold: ' + call.threshold +
+            (call.threshold === quorumThreshold(call.members) ? '' :
+                ', set by hand (a majority of voting members would be ' + quorumThreshold(call.members) + ')') + '.';
     }
 
     function classicAltText({ title, attendance, quorum, votes }) {
@@ -128,9 +147,11 @@ const Tally = (function () {
     }
 
     // Keeps user text inside one cell and stops spreadsheets from evaluating it as a formula.
+    // Spreadsheets split rows on any line separator, read a leading double quote as a quoted
+    // field that can swallow later tabs and rows, and skip leading spaces before a formula sign.
     function textCell(value) {
-        const flat = String(value).replace(/[\t\r\n]+/g, ' ');
-        return /^[=+\-@]/.test(flat) ? "'" + flat : flat;
+        const flat = String(value).replace(/[\u0000-\u001f\u007f\u0085\u2028\u2029]+/g, ' ');
+        return /^\s*[=+\-@"]/.test(flat) ? "'" + flat : flat;
     }
 
     function sessionSummaryText(session) {
@@ -233,7 +254,7 @@ const Tally = (function () {
     }
 
     return {
-        quorumThreshold, quorumCall, motionOutcome, checkCounts, fmtPct, motionAltText, quorumAltText,
+        quorumThreshold, effectiveThreshold, thresholdOverride, quorumCall, quorumBasis, motionOutcome, checkCounts, fmtPct, motionAltText, quorumAltText,
         classicAltText, fmtDate, sessionAltText, sessionQuorum, sessionOutcomes, sessionSummaryText, encodeSession, decodeSession,
         readTitle, isGiven
     };

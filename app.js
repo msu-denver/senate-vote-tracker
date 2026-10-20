@@ -435,7 +435,7 @@ function renderQuorum(container, title, call) {
     g.append(h('div', 'g-title', title));
     const word = call.met ? 'MET' : 'NOT MET';
     g.append(h('div', 'g-status ' + statusClass(word), word));
-    g.append(h('div', 'g-sub', 'Quorum is a majority of voting members'));
+    g.append(h('div', 'g-sub', Tally.quorumBasis(call)));
 
     const wrap = h('div', 'bar-wrap');
     const bar = h('div', 'split-bar');
@@ -550,7 +550,7 @@ function quorumLink(title, members, signedIn, threshold) {
     params.set('title', title);
     pushNum(params, 'members', members);
     pushNum(params, 'signedin', signedIn);
-    pushNum(params, 'threshold', threshold);
+    pushNum(params, 'threshold', Tally.thresholdOverride(members, threshold));
     return pageUrl(params);
 }
 
@@ -586,8 +586,7 @@ function loadQuorumParams(params) {
     setValue('quorumTitle', Tally.readTitle(params.get('title')));
     setValue('quorumMembers', params.get('members'));
     setValue('quorumSignedIn', params.get('signedin'));
-    setValue('quorumThreshold', params.get('threshold'));
-    if (params.get('threshold')) document.getElementById('quorumThreshold').dataset.touched = '1';
+    loadThreshold('quorumMembers', 'quorumThreshold', params.get('threshold'));
     updateQuorum();
 }
 
@@ -597,6 +596,16 @@ function syncThreshold(membersId, thresholdId) {
     const members = readNum(membersId);
     if (input.dataset.touched === '1' || members === null || !(members > 0)) return;
     input.value = Tally.quorumThreshold(members);
+}
+
+// A threshold in a link is an explicit override and stays fixed; without one the field
+// is prefilled and keeps following the roster size.
+function loadThreshold(membersId, thresholdId, saved) {
+    const input = document.getElementById(thresholdId);
+    const given = saved !== null && saved !== undefined && saved !== '';
+    input.dataset.touched = given ? '1' : '0';
+    if (given) setValue(thresholdId, saved);
+    else syncThreshold(membersId, thresholdId);
 }
 
 // ---- Session mode ----
@@ -696,7 +705,7 @@ function readSession() {
         session.signedIn = signedIn;
         if (threshold !== null) {
             if (!Number.isInteger(threshold) || threshold < 1) errors.push('Quorum Threshold must be a whole number, one or more.');
-            else session.threshold = threshold;
+            else if (Tally.thresholdOverride(members, threshold) !== undefined) session.threshold = threshold;
         }
         const qCheck = Tally.checkCounts({ yes: 0, no: 0, present: 0, members, signedIn });
         errors.push.apply(errors, qCheck.errors);
@@ -824,8 +833,7 @@ function fillSession(session) {
     setValue('sessionDate', session.date);
     setValue('sessionMembers', session.members);
     setValue('sessionSignedIn', session.signedIn);
-    setValue('sessionThreshold', session.threshold);
-    if (session.threshold !== undefined) document.getElementById('sessionThreshold').dataset.touched = '1';
+    loadThreshold('sessionMembers', 'sessionThreshold', session.threshold);
     document.getElementById('sessionMotions').textContent = '';
     if (session.motions.length === 0) addMotionRow();
     session.motions.forEach(addMotionRow);
